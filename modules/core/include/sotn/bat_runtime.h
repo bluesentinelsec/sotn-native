@@ -287,6 +287,16 @@ typedef struct SotnBatRuntime
     Uint64 familiar_mask;  /**< Initialized familiar DE hitboxes by actual slot. */
     Uint64 subweapon_mask; /**< Live subweapon hitboxes (nonzero size) by actual slot. */
     bool hand_attack;      /**< Actual shared slot16 ordinary-hand attack. */
+    /** A servant's own slot4 attack (the Ghost's GetServantStats): room-space whole-pixel
+     * origin, enemyId group3..6 and spell properties. HitDetection checks slot4 before slots16+;
+     * the session clears it when the slot's next callback drops the hitbox. */
+    struct
+    {
+        SotnPlayerAttack attack;
+        Sint32 x, y;
+        bool facing_left;
+        Uint8 group;
+    } servant;
     /** Weapon51 glow and weapon26 green-cycle g_Clut words written this pass, in callback order
      * (the session commits them to its palette store after a successful pass): each word
      * becomes (word & mask) + value. */
@@ -352,6 +362,17 @@ typedef struct SotnBatRuntime
 bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *runtime, Uint64 other_occupied,
                                         SotnPlayerFactorySource source, Uint16 parameter,
                                         Uint16 spell, Uint16 level, bool *allocated);
+/** @brief GetServantStats(servant, spell, 1) for a servant attacking with its own slot4 entity.
+ * @param runtime Actual shared owner. @param character Actual character (INT, rand, Mojo Mail).
+ * @param dra Private spell definitions. @param spell Spell17 or18 (the Ghost).
+ * @param level The familiar's level1..99. @param x Room-space whole-pixel X. @param y Y.
+ * @param facing_left Entity facing. @param width Hitbox width. @param height Hitbox height.
+ * Rolls GetSpellDef (one character rand), scales by level*4/95+1 and takes func_80118894's
+ * least-used group3..6 (slot4 is below slot32), counted until the pass's slot17..47 recount.
+ * @return Success or SDL error leaving runtime and character unchanged. */
+bool SotnBatRuntime_ServantAttack(SotnBatRuntime *runtime, SotnCharacter *character,
+                                  SotnDataView dra, Uint16 spell, Uint16 level, Sint32 x, Sint32 y,
+                                  bool facing_left, Uint16 width, Uint16 height);
 /** @brief Validate one familiar DE hitbox child: identity, slot range, spell, level and group. */
 bool SotnBatRuntime_FamiliarHitboxValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Reserve actual ordinary bp48 or unarmed bp42/43 factories. */

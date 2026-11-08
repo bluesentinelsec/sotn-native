@@ -69,11 +69,12 @@ typedef struct SotnGhostInput
     SotnFamiliarEventSource event_source;
     SotnFamiliarEventInput room;
 } SotnGhostInput;
-/** @brief Real stage-pool rows held by one live Ghost child (slot5..7). */
+/** @brief Real stage-pool rows held by one live Ghost child (slot5..7); Leases leaves rows zero. */
 typedef struct SotnGhostLease
 {
     Uint32 generation;
     Uint16 slot, count;
+    Uint16 rows[SOTN_GHOST_CLOUD_ROWS]; /**< Actual pool rows, chosen by the native owner. */
 } SotnGhostLease;
 /** @brief Requests for native owners, committed after a successful callback. */
 typedef struct SotnGhostEvents

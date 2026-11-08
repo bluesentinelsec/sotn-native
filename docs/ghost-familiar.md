@@ -1,15 +1,36 @@
-# Ghost familiar component
+# Ghost familiar
 
-The Ghost familiar (`tt_001`, Ghost Card) now has a native reconstruction of its overlay. Like
-the [Sword familiar component](sword-familiar.md) before its session work, this component is
-**not yet playable**:
+The Ghost familiar (`tt_001`, Ghost Card) now runs in gameplay. Switch on an owned Ghost Card
+in the relic menu; closing the menu summons the ghost. It follows Alucard, flies to nearby
+enemies and attacks them, steals souls from level 70 and gains EXP from kills.
 
-- the session does not load, tick or draw it;
-- its attacks do not reach native combat;
-- the relic menu does not offer the Ghost Card.
+Defaults, grants and saves are unchanged: nothing grants the Ghost Card, and the Ghost's level
+already lives in the v11 familiar records (record 1).
 
-Defaults, grants and saves are unchanged. The Ghost's level already lives in the v11 familiar
-records (record 1).
+## Session
+
+The session uses the same familiar load path as the [Sword](sword-familiar.md):
+
+- **Loading.** The Ghost profile is servant 2, card 19, record 1, `TT_001`/`FT_001`/`SD_GHOST`
+  and the room-event table at 0x801705B0. One familiar overlay is resident; switching replaces
+  it. The prepared graphics bind the overlay's bank-20 sprite parts (0x80170040). ServantInit's
+  256-word CLUT then replaces the raw upload at row 0xF4 before the candidate commits.
+- **Updates.** Slots 4..7 run in order on ordinary passes. Before each callback the session
+  checks the real stage pool for the ring's eight or the question marks' three rows. After it,
+  the session commits the leases (namespace `0xA000 | slot`), the target mark and the glass
+  sound.
+- **Translation.** Camera movement and connected-room entry translate the ghost and its rows
+  the same way as the Sword's.
+- **Drawing.** The ghost draws its bank-20 sprite (palette 0x140, `unk5A` 0x6C) at its pulsing
+  opacity with additive blending. The ring and question marks draw as their GT4 rows.
+- **Combat.** An attack calls `GetServantStats`. It rolls the spell (one character `rand`, INT,
+  Mojo Mail), scales it by `level * 4 / 95 + 1` and takes `func_80118894`'s least-used group
+  3..6. The group stays counted until the pass's slot 17..47 recount.
+  - The ghost's own slot-4 hitbox (8x8) is then live for exactly one hit detection. It is
+    checked before slots 16 and up, as `HitDetection` scans attackers in slot order.
+  - Spell 18's hit effect 2 creates real soul-steal orbs. Kills give familiar EXP through the
+    existing reward path.
+  - Death, a room change, ServantInit and deselection retire the box.
 
 ## Behavior
 
@@ -84,7 +105,21 @@ globals. The native owner supplies real row allocation outcomes and commits the 
     the CLUT and the overlay globals.
   - Seven mutants fail it.
 
-These are component checks, not evidence of a playable familiar, acquisition, routes or console
+- **Public tests.** The Ghost's row leases (first free rows, kept owners, stale/unclaimed rows,
+  malformed requests and exhaustion fail without change) and `GetServantStats` for slot 4
+  (spell, scale, group, rand, recount, death).
+- **Private session probe** (`.tools/review-native-ghost.c`, muted, in the actual app). It covers
+  the zombie corridor with an explicit Ghost Card, selection and protection:
+  - follow and attack updates, 210 ring updates on 1,680 real rows and 7 slot-4 attacks;
+  - enemy damage, a kill and familiar EXP 0 to 4;
+  - the sprite's drawn pixels;
+  - Ghost to Sword to Ghost switches through the menu-close path;
+  - at level 75, soul-steal attacks creating orbs;
+  - deselection releasing every row.
+  - Two mutants fail it: no slot-4 combat channel, and a box that outlives the one-update
+    hitbox.
+
+These checks use explicit fixtures. They are not evidence of acquisition, routes or console
 parity.
 
 Adapted source: `src/servant/tt_001/ghost.c`, the shared servant helpers it includes and

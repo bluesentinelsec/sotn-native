@@ -1071,6 +1071,47 @@ bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *r, Uint64 other_occupied
     *allocated = false;
     return true;
 }
+static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterStats stats,
+                  Uint16 id, SotnPlayerAttack *attack);
+bool SotnBatRuntime_ServantAttack(SotnBatRuntime *r, SotnCharacter *character, SotnDataView dra,
+                                  Uint16 spell, Uint16 level, Sint32 x, Sint32 y, bool facing_left,
+                                  Uint16 width, Uint16 height)
+{
+    SotnCharacterState progress = {0};
+    SotnCharacterStats stats = {0};
+    SotnPlayerAttack attack = {0};
+    if (!r || (spell != 17 && spell != 18) || !level || level > 99 || !width || !height ||
+        width > 255 || height > 255 || x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 ||
+        y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16)
+        return SDL_SetError("Servant attack requires spell17/18, level1..99 and a bounded hitbox");
+    if (!SotnCharacter_Get(character, &progress, &stats) ||
+        !Spell(dra, &progress, stats, spell, &attack))
+        return false;
+    // GetServantStats: attack = spell.attack * (level * 4 / 95 + 1), an s16.
+    const Uint32 power = attack.power * (level * 4U / 95U + 1U);
+    if (power > 0x7fff)
+        return SDL_SetError("Servant attack exceeds its original word");
+    // func_80118894: slot4 lies below slot32, so the least-used of groups3..6.
+    Uint8 group = 3;
+    for (Uint8 g = 4; g < 7; ++g)
+        if (r->groups[g] < r->groups[group])
+            group = g;
+    if (r->groups[group] == 255)
+        return SDL_SetError("Servant attack shared group count overflow");
+    if (!SotnCharacter_Restore(character, &progress))
+        return false;
+    ++r->groups[group];
+    attack.power = (Uint16)power;
+    attack.offset_x = attack.offset_y = 0;
+    attack.width = width;
+    attack.height = height;
+    r->servant.attack = attack;
+    r->servant.x = x;
+    r->servant.y = y;
+    r->servant.facing_left = facing_left;
+    r->servant.group = group;
+    return true;
+}
 bool SotnBatRuntime_FamiliarHitboxValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     const bool brothers = c && c->kind == SOTN_SWORD_BROTHERS_HITBOX;
@@ -7898,6 +7939,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.karma_mask = r.secondary_mask = r.familiar_mask = r.subweapon_mask = 0;
         r.soul_attack = r.echo_attack = false;
         r.hand_attack = false;
+        r.servant.attack.active = false;
         for (Uint16 i = 0; i < 14; ++i)
             r.wolf.body.parts[i].hitbox_state = 0;
         for (Uint16 i = 0; i < 2; ++i)

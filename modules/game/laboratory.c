@@ -74,7 +74,9 @@ struct SotnLaboratory
     SotnFairyRuntime fairy_runtime;
     SotnSwordRuntime sword_runtime;
     SotnSwordLease sword_leases[3];
-    Uint16 familiar_overlay; /**< Identity whose overlay data the runtimes hold (3/5), or0. */
+    SotnGhostRuntime ghost_runtime;
+    SotnGhostLease ghost_leases[3];
+    Uint16 familiar_overlay; /**< Identity whose overlay data the runtimes hold (2/3/5), or0. */
     SotnResource *fairy_resources[4];
     SotnCdAudio *fairy_cd;
     Uint16 fairy_scene;
@@ -1873,13 +1875,18 @@ typedef struct FamiliarProfile
 } FamiliarProfile;
 static const FamiliarProfile FAMILIAR_FAIRY = {3, 20, 2, SOTN_RESOURCE_FAIRY_CODE, 0x80172d2cU};
 static const FamiliarProfile FAMILIAR_SWORD = {5, 22, 4, SOTN_RESOURCE_SWORD_CODE, 0x801719e4U};
+static const FamiliarProfile FAMILIAR_GHOST = {2, 19, 1, SOTN_RESOURCE_GHOST_CODE, 0x801705b0U};
 static const FamiliarProfile *Familiar(Uint16 identity)
 {
-    return identity == 3 ? &FAMILIAR_FAIRY : identity == 5 ? &FAMILIAR_SWORD : NULL;
+    return identity == 2   ? &FAMILIAR_GHOST
+           : identity == 3 ? &FAMILIAR_FAIRY
+           : identity == 5 ? &FAMILIAR_SWORD
+                           : NULL;
 }
 static bool FamiliarInitialized(const SotnLaboratory *s, Uint16 identity)
 {
-    return identity == 3   ? s->fairy_runtime.initialized
+    return identity == 2   ? s->ghost_runtime.initialized
+           : identity == 3 ? s->fairy_runtime.initialized
            : identity == 5 ? s->sword_runtime.initialized
                            : false;
 }
@@ -1980,6 +1987,51 @@ static bool CommitSwordEvents(SotnLaboratory *s, const SotnSwordEvents *e)
         s->fairy_pause_disabled = !e->pause_allowed;
     return !e->cd_command || SotnCdAudio_Queue(s->fairy_cd, e->cd_command);
 }
+// Every live Ghost child holds exactly its actual committed row lease.
+static bool ValidateGhost(const SotnLaboratory *s)
+{
+    SotnGhostLease wanted[3] = {0};
+    if (!SotnGhostRuntime_Leases(&s->ghost_runtime, wanted))
+        return false;
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        const SotnGhostLease *l = &s->ghost_leases[i];
+        if (wanted[i].count != l->count ||
+            (l->count && (wanted[i].generation != l->generation || wanted[i].slot != l->slot)))
+            return SDL_SetError("Ghost familiar slot %u lost its actual row lease", i + 5U);
+        for (Uint16 row = 0; row < l->count; ++row)
+            if (!SotnActors_GhostRow(s->actors, l, row))
+                return false;
+    }
+    return true;
+}
+static bool CommitGhostRows(SotnLaboratory *s, const SotnGhostRuntime *runtime)
+{
+    SotnGhostLease wanted[3] = {0};
+    return SotnGhostRuntime_Leases(runtime, wanted) &&
+           SotnActors_CommitGhostRows(s->actors, s->ghost_leases, wanted);
+}
+static SotnGhostInput GhostInput(SotnLaboratory *s, SotnDataView overlay, SotnPlayerState p,
+                                 SotnFamiliarStats stats, Sint32 camera_x, Sint32 camera_y)
+{
+    // Original 4CE2C.c clears FgLayer flags unless the layer's20/40 special bits apply.
+    const Uint16 flags =
+        (s->room.foreground.parameters & 0x60U) ? s->room.foreground.parameters : 0;
+    return (SotnGhostInput){.overlay = overlay,
+                            .executable = s->executable,
+                            .player = FairyPlayer(p, camera_x, camera_y),
+                            .stats = stats,
+                            .room_flags = flags,
+                            .stage = s->stage_id,
+                            .event_source = {overlay, FAMILIAR_GHOST.events, 49},
+                            .room = {.world = &s->world,
+                                     .room_x = s->room.foreground.left,
+                                     .room_y = s->room.foreground.top,
+                                     .camera_x = (Sint16)camera_x,
+                                     .camera_y = (Sint16)camera_y,
+                                     .stage = s->stage_id,
+                                     .servant = FAMILIAR_GHOST.identity}};
+}
 static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y,
                        SotnFairyRuntimeInput *out)
 {
@@ -2051,7 +2103,8 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
         !SotnCharacter_GetFamiliars(s->character, &progress, &previous) ||
         !SotnFamiliarProgress_Validate(&progress) || (previous && !Familiar(previous)) ||
         (engine && previous != selected) ||
-        !SotnFairyRuntime_Validate(&s->fairy_runtime, s->actors) || !ValidateSword(s))
+        !SotnFairyRuntime_Validate(&s->fairy_runtime, s->actors) || !ValidateSword(s) ||
+        !ValidateGhost(s))
         return SDL_SetError("Familiar loading requires actual player/progression/lifecycle owners");
     SotnWorldState world = s->world;
     Uint16 selected_cards = 0;
@@ -2090,19 +2143,27 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
     if (!selected && !retained)
     {
         SotnSwordRuntime *sword = SDL_malloc(sizeof(*sword));
-        if (!sword)
-            return false;
-        *sword = s->sword_runtime;
-        const bool ok = SotnSwordRuntime_Clear(sword) && CommitSwordRows(s, sword) &&
-                        SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors) &&
-                        (engine || SotnCharacter_SelectFamiliar(s->character, 0, false));
+        SotnGhostRuntime *ghost = SDL_malloc(sizeof(*ghost));
+        bool ok = sword && ghost;
+        if (ok)
+        {
+            *sword = s->sword_runtime;
+            *ghost = s->ghost_runtime;
+            ok = SotnSwordRuntime_Clear(sword) && SotnGhostRuntime_Clear(ghost) &&
+                 CommitSwordRows(s, sword) && CommitGhostRows(s, ghost) &&
+                 SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors) &&
+                 (engine || SotnCharacter_SelectFamiliar(s->character, 0, false));
+        }
         if (ok)
         {
             s->sword_runtime = *sword;
+            s->ghost_runtime = *ghost;
+            s->bat_runtime.servant.attack.active = false;
             s->world = world;
             s->dirty = true;
         }
         SDL_free(sword);
+        SDL_free(ghost);
         return ok;
     }
     const bool cached = loaded && s->familiar_overlay == want;
@@ -2113,7 +2174,9 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
     Uint16 clut[SOTN_SWORD_CLUT_WORDS] = {0};
     SotnFairyRuntime *runtime = SDL_malloc(sizeof(*runtime));
     SotnSwordRuntime *sword = SDL_malloc(sizeof(*sword));
-    if (!runtime || !sword)
+    SotnGhostRuntime *ghost = SDL_malloc(sizeof(*ghost));
+    SotnGhostEvents *ghost_events = SDL_calloc(1, sizeof(*ghost_events));
+    if (!runtime || !sword || !ghost || !ghost_events)
         goto fail;
     if (!cached)
     {
@@ -2121,10 +2184,13 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
             if (!SotnResource_Open(s->directory, (SotnResourceId)(profile->code + i), &opened[i]))
                 goto fail;
         SotnMusic *empty = NULL;
-        if ((want == FAMILIAR_FAIRY.identity
+        // Fairy and Ghost bind their bank20 g_ServantSpriteParts (both at 0x80170040); the
+        // Ghost's ServantInit CLUT replaces the raw upload below, before the candidate commits.
+        if ((want != FAMILIAR_SWORD.identity
                  ? !SotnActorGraphics_PrepareFamiliar(
                        s->actor_graphics, SotnResource_View(opened[0]),
-                       SotnResource_View(opened[1]), 0x80170040, 0x801722e8, &graphics)
+                       SotnResource_View(opened[1]), 0x80170040,
+                       want == FAMILIAR_FAIRY.identity ? 0x801722e8 : 0x80170448, &graphics)
                  : (!SotnSword_Clut(SotnResource_View(opened[0]), clut) ||
                     !SotnActorGraphics_PrepareFamiliarModel(s->actor_graphics,
                                                             SotnResource_View(opened[1]), clut,
@@ -2159,18 +2225,22 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
         .event_source = {overlay, FAMILIAR_FAIRY.events, 49}};
     *runtime = s->fairy_runtime;
     *sword = s->sword_runtime;
+    *ghost = s->ghost_runtime;
     // Another familiar's overlay replaces the RAM image: the wanted one's data starts fresh.
     if (s->familiar_overlay != want)
     {
         if (want == FAMILIAR_FAIRY.identity)
             SDL_zerop(runtime);
-        else
+        else if (want == FAMILIAR_SWORD.identity)
             SDL_zerop(sword);
+        else
+            SDL_zerop(ghost);
     }
     if (previous != selected)
     {
         SDL_zero(runtime->slots);
-        if (s->familiar_overlay == want && !SotnSwordRuntime_Clear(sword))
+        if (s->familiar_overlay == want &&
+            (!SotnSwordRuntime_Clear(sword) || !SotnGhostRuntime_Clear(ghost)))
             goto fail;
     }
     const Uint16 mode = engine ? 0 : previous == selected ? 3 : 1;
@@ -2182,16 +2252,28 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
                                 SwordInput(s, overlay, player,
                                            progress.records[FAMILIAR_SWORD.record], s->camera.x,
                                            s->camera.y),
-                                mode, &sword_events)))
+                                mode, &sword_events)) ||
+        (selected == FAMILIAR_GHOST.identity &&
+         !SotnGhostRuntime_Init(ghost,
+                                GhostInput(s, overlay, player,
+                                           progress.records[FAMILIAR_GHOST.record], s->camera.x,
+                                           s->camera.y),
+                                mode, ghost_events)))
         goto fail;
     if (sword_events.castle_flag_write)
         world.flags[464] = sword_events.castle_flag;
-    // A departing Sword's slots retire with their rows; another overlay keeps no Sword runtime.
-    if (want != FAMILIAR_SWORD.identity && !SotnSwordRuntime_Clear(sword))
+    // A departing Sword's or Ghost's slots retire with their rows; another overlay keeps no
+    // runtime of theirs.
+    if ((want != FAMILIAR_SWORD.identity && !SotnSwordRuntime_Clear(sword)) ||
+        (want != FAMILIAR_GHOST.identity && !SotnGhostRuntime_Clear(ghost)))
+        goto fail;
+    // The Ghost's ServantInit LoadImage goes to the prepared candidate before it commits.
+    if (graphics && ghost_events->clut_upload &&
+        !SotnActorGraphics_LoadFamiliarClut(graphics, ghost_events->clut, SOTN_GHOST_CLUT_WORDS))
         goto fail;
     // Everything that can allocate, read private files or validate metadata finishes first.
     // These final operations touch only the already validated live owners on this main thread.
-    const bool rows = CommitSwordRows(s, sword);
+    const bool rows = CommitSwordRows(s, sword) && CommitGhostRows(s, ghost);
     if (!rows || (previous != selected && !SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors)) ||
         (cd && !SotnCdAudio_AdoptMusic(cd, &s->music, s->system_timer)) ||
         (!engine && !SotnCharacter_SelectFamiliar(s->character, selected, !cached)))
@@ -2220,25 +2302,31 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, Uint16
             opened[i] = NULL;
         }
     }
-    else if (sword_events.clut_upload &&
-             !SotnActorGraphics_LoadFamiliarClut(s->actor_graphics, clut, SOTN_SWORD_CLUT_WORDS))
+    else if ((sword_events.clut_upload && !SotnActorGraphics_LoadFamiliarClut(
+                                              s->actor_graphics, clut, SOTN_SWORD_CLUT_WORDS)) ||
+             (ghost_events->clut_upload &&
+              !SotnActorGraphics_LoadFamiliarClut(s->actor_graphics, ghost_events->clut,
+                                                  SOTN_GHOST_CLUT_WORDS)))
         goto fail;
-    if (want == FAMILIAR_SWORD.identity)
-    {
-        s->sword_runtime = *sword;
-        if (s->familiar_overlay != want)
-            SDL_zero(s->fairy_runtime);
-    }
-    else
-    {
+    if (want == FAMILIAR_FAIRY.identity)
         s->fairy_runtime = *runtime;
+    else if (s->familiar_overlay != want)
+        SDL_zero(s->fairy_runtime);
+    s->sword_runtime = *sword;
+    if (want != FAMILIAR_SWORD.identity)
         SDL_zero(s->sword_runtime);
-    }
+    s->ghost_runtime = *ghost;
+    if (want != FAMILIAR_GHOST.identity)
+        SDL_zero(s->ghost_runtime);
+    // ServantInit replaces slot4: a pending Ghost hitbox no longer exists.
+    s->bat_runtime.servant.attack.active = false;
     s->familiar_overlay = want;
     s->world = world;
     s->dirty = true;
     SDL_free(runtime);
     SDL_free(sword);
+    SDL_free(ghost);
+    SDL_free(ghost_events);
     return true;
 fail:
     SotnActorGraphics_Destroy(graphics);
@@ -2248,6 +2336,8 @@ fail:
         SotnResource_Close(opened[i]);
     SDL_free(runtime);
     SDL_free(sword);
+    SDL_free(ghost);
+    SDL_free(ghost_events);
     return false;
 }
 
@@ -2288,7 +2378,7 @@ static bool InitializeFamiliar(SotnLaboratory *s, const SotnLaboratory *source)
         if (!SotnCharacter_GetFamiliars(source->character, &progress, &previous) ||
             previous != selected ||
             !SotnFairyRuntime_Validate(&source->fairy_runtime, source->actors) ||
-            !ValidateSword(source))
+            !ValidateSword(source) || !ValidateGhost(source))
             return SDL_SetError(
                 "Connected familiar handoff lost actual selection or namespace ownership");
         cached = source->fairy_resources[0] != NULL;
@@ -2298,7 +2388,7 @@ static bool InitializeFamiliar(SotnLaboratory *s, const SotnLaboratory *source)
         if ((cached && (!Familiar(source->familiar_overlay) || !source->fairy_cd ||
                         !FamiliarInitialized(source, source->familiar_overlay) || source->music)) ||
             (!cached && (selected || source->fairy_runtime.initialized ||
-                         source->sword_runtime.initialized)) ||
+                         source->sword_runtime.initialized || source->ghost_runtime.initialized)) ||
             (source->fairy_cd && source->music))
             return SDL_SetError(
                 "Connected familiar handoff lost actual loaded overlay/audio ownership");
@@ -2308,7 +2398,9 @@ static bool InitializeFamiliar(SotnLaboratory *s, const SotnLaboratory *source)
             s->fairy_runtime = source->fairy_runtime;
             SDL_zero(s->fairy_runtime.slots);
             s->sword_runtime = source->sword_runtime;
-            if (!SotnSwordRuntime_Clear(&s->sword_runtime))
+            s->ghost_runtime = source->ghost_runtime;
+            if (!SotnSwordRuntime_Clear(&s->sword_runtime) ||
+                !SotnGhostRuntime_Clear(&s->ghost_runtime))
                 return false;
             s->familiar_overlay = source->familiar_overlay;
         }
@@ -2521,6 +2613,83 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
     SDL_free(targets);
     return ok;
 }
+// Actual slot4..7 Ghost callbacks: real row leases before each callback, requests after it.
+static bool TickGhost(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y)
+{
+    if (s->familiar_overlay != FAMILIAR_GHOST.identity || !s->ghost_runtime.initialized)
+        return true;
+    bool occupied = false;
+    for (Uint16 i = 0; i < 4; ++i)
+        occupied = occupied || s->ghost_runtime.slots[i].identity;
+    if (!occupied)
+        return true;
+    if (gate != 0 && gate != 3)
+        return SDL_SetError("Ghost familiar callbacks require an ordinary or frozen pass");
+    SotnGhostRuntime *next = SDL_malloc(sizeof(*next));
+    SotnSwordTarget *targets = SDL_malloc(sizeof(*targets) * SOTN_SWORD_TARGETS);
+    Uint32 generations[SOTN_SWORD_TARGETS] = {0};
+    bool ok = next && targets;
+    for (Uint16 slot = 4; ok && slot < 8; ++slot)
+    {
+        const SotnGhostSlot *old = &s->ghost_runtime.slots[slot - 4U];
+        if (!old->identity || (gate == 3 && !(old->flags & 0x10000U)))
+            continue;
+        SotnPlayerState p = {0};
+        SotnFamiliarProgress progress = {0};
+        Uint16 selected = 0;
+        SotnActorControl control = {0};
+        bool allocated = false;
+        const Uint16 request = SotnGhostRuntime_RowRequest(&s->ghost_runtime, slot);
+        ok = SotnPlayer_GetState(s->player, &p) &&
+             SotnCharacter_GetFamiliars(s->character, &progress, &selected) &&
+             SotnActors_GetControl(s->actors, &control) &&
+             SwordTargets(s, camera_x, camera_y, targets, generations) &&
+             (!request || SotnActors_FreeRows(s->actors, request, &allocated));
+        if (ok && (selected != FAMILIAR_GHOST.identity ||
+                   (s->world.relics[FAMILIAR_GHOST.card] & 3U) != 3))
+            ok = SDL_SetError("Ghost familiar lost its actual owned active card");
+        if (!ok)
+            break;
+        const SotnFamiliarStats stats = progress.records[FAMILIAR_GHOST.record];
+        SotnGhostInput in =
+            GhostInput(s, SotnResource_View(s->fairy_resources[0]), p, stats, camera_x, camera_y);
+        in.cutscene = control.pause_disabled;
+        in.targets = targets;
+        in.allocated = allocated;
+        SotnGhostEvents events = {0};
+        *next = s->ghost_runtime;
+        ok = SotnGhostRuntime_UpdateSlot(next, slot, in, &events) && CommitGhostRows(s, next);
+        if (!ok)
+            break;
+        // The callback's original side effects, in order: FindValidTarget's flag write, the
+        // ring's glass shards and GetServantStats' rand/group for the slot4 hitbox.
+        if (events.mark && !SotnActors_MarkFamiliarTarget(s->actors, (Uint16)(events.mark - 1U),
+                                                          generations[events.mark - 1U],
+                                                          targets[events.mark - 1U].id))
+        {
+            ok = false;
+            break;
+        }
+        if (events.sound)
+            ok = SotnSound_Queue(s->sound, events.sound);
+        const SotnGhostSlot *self = &next->slots[slot - 4U];
+        if (ok && events.spell)
+            ok = slot == 4 && self->hitbox_width && self->hitbox_height &&
+                 SotnBatRuntime_ServantAttack(&s->bat_runtime, s->character, s->dra, events.spell,
+                                              (Uint16)stats.level, Pixel(self->x) + camera_x,
+                                              Pixel(self->y) + camera_y, self->facing_left,
+                                              self->hitbox_width, self->hitbox_height);
+        if (!ok)
+            break;
+        // Slot4's own hitbox lasts until its next callback clears the size.
+        if (slot == 4 && !events.spell)
+            s->bat_runtime.servant.attack.active = false;
+        s->ghost_runtime = *next;
+    }
+    SDL_free(next);
+    SDL_free(targets);
+    return ok;
+}
 // dra/menu.c MENU_STEP_EXIT_10/11: on leaving the menu the active card's familiar switches
 // (loads+1, menu-switch init) or, if unchanged, reinitializes as MENU_SAME_SERVANT.
 static bool CloseMenuFamiliar(SotnLaboratory *s)
@@ -2574,7 +2743,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     const Uint16 fairy_scene = session->fairy_scene;
     if ((!entering &&
          (!TickFairy(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y) ||
-          !TickSword(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y))) ||
+          !TickSword(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y) ||
+          !TickGhost(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y))) ||
         !TickMist(session, player, entering) || !TickBlinks(session, player, entering) ||
         !SotnPlayer_GetState(session->player, &player))
         return false;
@@ -2586,6 +2756,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
                                     (Sint16)(fairy_camera_x - camera_x),
                                     (Sint16)(fairy_camera_y - camera_y), 0, 0, false) ||
         !SotnSwordRuntime_Translate(&session->sword_runtime, (Sint16)(fairy_camera_x - camera_x),
+                                    (Sint16)(fairy_camera_y - camera_y), 0, 0, false) ||
+        !SotnGhostRuntime_Translate(&session->ghost_runtime, (Sint16)(fairy_camera_x - camera_x),
                                     (Sint16)(fairy_camera_y - camera_y), 0, 0, false))
         return false;
     SotnCharacterState profile = {0};
@@ -2915,7 +3087,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256 + crossing.arrival_y;
         const SotnFairyPlayer departing = FairyPlayer(*state, session->camera.x, session->camera.y);
         if (!SotnFairyRuntime_Validate(&session->fairy_runtime, session->actors) ||
-            !ValidateSword(session))
+            !ValidateSword(session) || !ValidateGhost(session))
             return false;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
             return false;
@@ -2941,9 +3113,16 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
                                         FairyFixed((Uint32)departing.x - (Uint32)destination.x),
                                         FairyFixed((Uint32)departing.y - (Uint32)destination.y),
                                         true) ||
-            !CommitSwordRows(session, &session->sword_runtime) || !EnterSaveRoom(session) ||
+            !SotnGhostRuntime_Translate(&session->ghost_runtime, 0, 0,
+                                        FairyFixed((Uint32)departing.x - (Uint32)destination.x),
+                                        FairyFixed((Uint32)departing.y - (Uint32)destination.y),
+                                        true) ||
+            !CommitSwordRows(session, &session->sword_runtime) ||
+            !CommitGhostRows(session, &session->ghost_runtime) || !EnterSaveRoom(session) ||
             !SotnPlayer_ClearRoomContact(session->player))
             return false;
+        // HitDetection already ran in the departing room; the room-space slot4 box retires.
+        session->bat_runtime.servant.attack.active = false;
         SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
     }
@@ -4612,6 +4791,31 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
         }
     }
+    if (!background && session->ghost_runtime.initialized)
+    {
+        if (!ValidateGhost(session))
+            return false;
+        const SotnGhostSlot *body = &session->ghost_runtime.slots[0];
+        if (body->identity == SOTN_GHOST_DEFAULT && body->frame &&
+            !SotnActorOrder_Add(
+                session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                (SotnActorDraw){.priority = body->priority, .kind = SOTN_DRAW_GHOST_SPRITE}))
+            return false;
+        for (Uint16 child = 1; child < 4; ++child)
+        {
+            const SotnGhostLease *lease = &session->ghost_leases[child - 1U];
+            const SotnPlayerEffectQuad *rows = session->ghost_runtime.rows[child - 1U];
+            for (Uint16 row = 0; row < lease->count; ++row)
+                if (!(rows[row].draw_mode & 8U) &&
+                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                        &draw_count,
+                                        (SotnActorDraw){.priority = rows[row].priority,
+                                                        .actor = child,
+                                                        .primitive = row,
+                                                        .kind = SOTN_DRAW_GHOST_ROW}))
+                    return false;
+        }
+    }
     if (!background && session->mist_present)
         for (Uint16 i = 0; i < 80; ++i)
             if (!session->mist_effect.quads[i].hidden &&
@@ -5427,6 +5631,44 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     session->draw_target.offset_x + session->shake.x,
                     session->draw_target.offset_y + session->shake.y, session->draw_target.surface))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_GHOST_SPRITE || command.kind == SOTN_DRAW_GHOST_ROW)
+        {
+            if (!session->ghost_runtime.initialized)
+                return SDL_SetError("Ghost familiar draw lost its actual owner");
+            const Sint32 offset_x = session->draw_target.offset_x + session->shake.x,
+                         offset_y = session->draw_target.offset_y + session->shake.y;
+            if (command.kind == SOTN_DRAW_GHOST_ROW)
+            {
+                if (command.actor < 1 || command.actor > 3 ||
+                    !SotnActors_GhostRow(session->actors,
+                                         &session->ghost_leases[command.actor - 1U],
+                                         command.primitive) ||
+                    !SotnActorGraphics_PlayerEffectGpu(
+                        session->actor_graphics,
+                        &session->ghost_runtime.rows[command.actor - 1U][command.primitive],
+                        offset_x, offset_y, session->draw_target.surface))
+                    return false;
+                continue;
+            }
+            // ServantInit: bank20 (ANIMSET_OVL(20)), PAL_SERVANT, unk5A 0x6C; the default step
+            // draws ENTITY_OPACITY with BLEND_TRANSP | BLEND_ADD.
+            const SotnGhostSlot *body = &session->ghost_runtime.slots[0];
+            if (body->identity != SOTN_GHOST_DEFAULT || !body->frame ||
+                !SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = 0x8014,
+                                      .frame = (Uint16)body->frame,
+                                      .palette = 0x140,
+                                      .texture_offset = 0x6c,
+                                      .blend_mode = 0x30,
+                                      .facing_left = body->facing_left},
+                    Pixel(body->x) + offset_x, Pixel(body->y) + offset_y,
+                    (SotnSpriteTransform){.scale_x = 256, .scale_y = 256, .opacity = body->opacity},
+                    session->draw_target.surface))
+                return SDL_SetError("Ghost familiar draw lost its actual sprite: %s",
+                                    SDL_GetError());
             continue;
         }
         if (command.kind == SOTN_DRAW_FAIRY_SPRITE || command.kind == SOTN_DRAW_FAIRY_TILE ||

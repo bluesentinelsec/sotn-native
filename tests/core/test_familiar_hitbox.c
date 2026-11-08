@@ -29,6 +29,16 @@ static void Spells(void)
     Put16(b + 18, 0x81);
     Put16(b + 22, 0x40);
     Put16(b + 24, 20);
+    // g_SpellDefs[17/18], the Ghost's: invincibility2, stun4, hitbox2, effect1/2 (soul steal).
+    for (Uint16 id = 17; id <= 18; ++id)
+    {
+        Uint8 *g = dra + 0x8410 + id * 28U;
+        g[13] = 2;
+        Put16(g + 14, 4);
+        Put16(g + 16, 2);
+        Put16(g + 18, id == 17 ? 1 : 2);
+        Put16(g + 24, 5);
+    }
     for (Uint16 id = 19; id <= 20; ++id)
     {
         Uint8 *s = dra + 0x8410 + id * 28U;
@@ -154,9 +164,56 @@ static bool HitboxTest(void)
     SDL_free(r);
     return true;
 }
+// GetServantStats for the Ghost's own slot4: one rand, level scale, least-used group3..6
+// counted until the pass's slot17..47 recount; death clears the retained box.
+static bool ServantTest(void)
+{
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r)), *saved = SDL_malloc(sizeof(*saved));
+    SotnCharacter *character = NULL;
+    CHECK(r && saved && SotnCharacter_Create((SotnDataView){dra, sizeof(dra)}, &character));
+    SotnCharacterState c = {0};
+    SotnCharacterStats stats = {0};
+    CHECK(SotnCharacter_Get(character, &c, &stats));
+    c.random = 0x2468aceU;
+    CHECK(SotnCharacter_Restore(character, &c));
+    Uint32 random = c.random;
+    const Uint16 roll = SotnCombat_Random(&random);
+    r->groups[3] = 2;
+    r->groups[4] = 1;
+    r->groups[6] = 1;
+    const SotnDataView view = {dra, sizeof(dra)};
+    CHECK(SotnBatRuntime_ServantAttack(r, character, view, 18, 70, 120, -8, true, 8, 8));
+    const SotnPlayerAttack a = r->servant.attack;
+    CHECK(a.active && a.power == (5 + (stats.total[2] * 2U + roll % 12U) / 10U) * 3 &&
+          a.width == 8 && a.height == 8 && !a.offset_x && a.hit_type == 2 && a.hit_effect == 2 &&
+          a.stun_frames == 4 && a.invincibility_frames == 2 && r->servant.x == 120 &&
+          r->servant.y == -8 && r->servant.facing_left && r->servant.group == 5 &&
+          r->groups[5] == 1);
+    CHECK(SotnCharacter_Get(character, &c, NULL) && c.random == random);
+    // Invalid requests change nothing, including the character's rand cursor.
+    *saved = *r;
+    CHECK(
+        !SotnBatRuntime_ServantAttack(r, character, view, 19, 70, 0, 0, false, 8, 8) &&
+        !SotnBatRuntime_ServantAttack(r, character, view, 17, 0, 0, 0, false, 8, 8) &&
+        !SotnBatRuntime_ServantAttack(r, character, view, 17, 100, 0, 0, false, 8, 8) &&
+        !SotnBatRuntime_ServantAttack(r, character, view, 17, 1, 0, 0, false, 0, 8) &&
+        !SotnBatRuntime_ServantAttack(r, character, view, 17, 1, 40000, 0, false, 8, 8) &&
+        !SotnBatRuntime_ServantAttack(r, character, (SotnDataView){0}, 17, 1, 0, 0, false, 8, 8) &&
+        !SDL_memcmp(saved, r, sizeof(*r)));
+    CHECK(SotnCharacter_Get(character, &c, NULL) && c.random == random);
+    // The pass's recount drops the slot4 count; the box itself stays until death clears it.
+    CHECK(SotnBatRuntime_Tick(r, character, Input()) && !r->groups[5] && r->servant.attack.active);
+    SotnBatRuntimeInput dying = Input();
+    dying.player.step = SOTN_PLAYER_DEATH_HOLD;
+    CHECK(SotnBatRuntime_Tick(r, character, dying) && !r->servant.attack.active);
+    SotnCharacter_Destroy(character);
+    SDL_free(saved);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     TestCharacter_Fill(dra);
     Spells();
-    return HitboxTest() ? 0 : 1;
+    return HitboxTest() && ServantTest() ? 0 : 1;
 }
