@@ -1127,8 +1127,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea, Bible,
-// Cross):
+// func_8010EB5C for subweapons the shared runtime owns (dagger, Rebound Stone, Vibhuti, Agunea,
+// Bible, Cross):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1138,7 +1138,8 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     SotnCharacterState progress = {0};
     if (!s || !handled || !used || !animation || !SotnCharacter_Get(s->character, &progress, NULL))
         return SDL_SetError("Shared subweapon use requires its session and outputs");
-    *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
+    *handled = progress.subweapon == SOTN_SUBWEAPON_DAGGER ||
+               progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
                progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
                progress.subweapon == SOTN_SUBWEAPON_AGUNEA ||
                progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
@@ -4783,6 +4784,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                     .primitive = (Uint16)(owner * 64U),
                                     .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
                 return false;
+            // The dagger's blade GT4 and additive trail LINE_G2 (same priority, blade first).
+            if (child->subweapon && child->initialized &&
+                child->state.subweapon.motion.id == SOTN_SUBWEAPON_DAGGER)
+            {
+                const SotnDagger *d = &child->state.subweapon.motion.dagger;
+                if ((!(d->quad_mode & 8U) &&
+                     !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                         &draw_count,
+                                         (SotnActorDraw){.priority = d->row_priority,
+                                                         .primitive = (Uint16)(owner * 64U),
+                                                         .kind = SOTN_DRAW_SUBWEAPON_QUAD})) ||
+                    (!(d->line_mode & 8U) &&
+                     !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                         &draw_count,
+                                         (SotnActorDraw){.priority = d->row_priority,
+                                                         .primitive = (Uint16)(owner * 16U),
+                                                         .kind = SOTN_DRAW_SUBWEAPON_LINE})))
+                    return false;
+            }
             // The cross beam's GT4, a giant cross's visible faces and the particles' shown sparks.
             if (child->subweapon && child->initialized &&
                 child->state.subweapon.motion.id == SOTN_SUBWEAPON_CROSS &&
@@ -5736,6 +5756,31 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
                 continue;
             }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized && !row &&
+                m->id == SOTN_SUBWEAPON_DAGGER && SotnBatRuntime_SubweaponValid(c, index))
+            {
+                // Page 0x1C/palette 0x1AB with its rotated UVs; DRAW_COLORS greys the fade.
+                const SotnDagger *d = &m->dagger;
+                SotnPlayerEffectQuad q = {.u = {0x18, 0x18, 0x20, 0x20},
+                                          .v = {0x18, 0, 0x18, 0},
+                                          .red = {d->grey, d->grey, d->grey, d->grey},
+                                          .green = {d->grey, d->grey, d->grey, d->grey},
+                                          .blue = {d->grey, d->grey, d->grey, d->grey},
+                                          .page = 0x1c,
+                                          .palette = 0x1ab,
+                                          .priority = d->row_priority,
+                                          .draw_mode = d->quad_mode};
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    q.x[v] = BlinkWord(d->x[v] - view_x);
+                    q.y[v] = BlinkWord(d->y[v] - view_y);
+                }
+                if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
                 (m->id == SOTN_SUBWEAPON_CROSS || m->id == SOTN_GIANT_CROSS ||
                  m->id == SOTN_CROSS_PARTICLES) &&
@@ -5779,12 +5824,33 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const Uint16 index = command.primitive / 16U, row = command.primitive % 16U;
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
-            const bool agunea = c->state.subweapon.motion.id == SOTN_SUBWEAPON_AGUNEA;
+            const bool agunea = c->state.subweapon.motion.id == SOTN_SUBWEAPON_AGUNEA,
+                       dagger = c->state.subweapon.motion.id == SOTN_SUBWEAPON_DAGGER;
             if (index >= SOTN_BAT_RUNTIME_SLOTS || !c->subweapon || !c->initialized ||
                 (c->state.subweapon.motion.id != SOTN_SUBWEAPON_REBOUND_STONE &&
-                 !(agunea && !row)) ||
+                 !((agunea || dagger) && !row)) ||
                 !SotnBatRuntime_SubweaponValid(c, index))
                 return SDL_SetError("Subweapon LINE_G2 draw lost its actual row ownership");
+            if (dagger)
+            {
+                const SotnDagger *d = &c->state.subweapon.motion.dagger;
+                const Sint32 ox = session->draw_target.offset_x + session->shake.x - view_x,
+                             oy = session->draw_target.offset_y + session->shake.y - view_y;
+                // drawMode0x33: additive (ABR1), orange at the blade fading to black.
+                const SotnColorLine line = {.x = {d->line_x[0] + ox, d->line_x[1] + ox},
+                                            .y = {d->line_y[0] + oy, d->line_y[1] + oy},
+                                            .red = {0x7f, 0},
+                                            .green = {0x3f, 0},
+                                            .blue = {0, 0},
+                                            .blend = true,
+                                            .blend_mode = (Uint8)((d->line_mode >> 5) & 3U)};
+                if ((!(d->line_mode & 8U) &&
+                     !SotnActorGraphics_LineSurface(line, session->draw_target.surface)) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             if (agunea)
             {
                 const SotnAgunea *a = &c->state.subweapon.motion.agunea;

@@ -1639,6 +1639,202 @@ static bool CrossRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// EntitySubwpnKnife: birth (lift/crouch/facing), eight-step flight with blade and trail, the
+// wall bounce at the probe, the guard (hitFlags 2) bounce, the enemy hold, spin, fade, retirement.
+static bool Dagger(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .collision = Map(),
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 30,
+                             .screen_y = 10,
+                             .player_priority = 148};
+    const SotnSubweaponEntity fresh = {
+        .x = 40 * 65536 + 0x1234, .y = 109 * 65536 + 0x5678, .id = SOTN_SUBWEAPON_DAGGER};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 3;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == 3 && !rolls);
+    in.allocated = true;
+    for (Uint16 crouch = 0; crouch < 2; ++crouch)
+    {
+        e = fresh;
+        in.player_status = crouch ? 0x20U : 0x8U;
+        in.player_facing_left = crouch != 0;
+        Uint32 expected = random;
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && e.step == 1 &&
+              e.flags == 0x08800000U && e.facing_left == (crouch != 0) &&
+              e.y == fresh.y - (crouch ? 0 : 9 * 65536) && e.x == fresh.x && e.hitbox_width == 4 &&
+              e.hitbox_height == 2 && e.hitbox_x == 4 && !e.hitbox_y &&
+              e.velocity_x == (crouch ? -0x80000 : 0x80000) && e.dagger.row_priority == 150 &&
+              e.dagger.quad_mode == 0x0a && e.dagger.line_mode == 0x3b && ev.sound == 0x60c &&
+              ev.use_ticks == 4 && !ev.factories);
+    }
+    // Flight right at y100 (row 6, open) towards the wall column at x128.
+    in.player_status = 0;
+    in.player_facing_left = false;
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    Sint32 x = 40;
+    for (Sint16 t = 1; x + 8 < 120; ++t)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && !ev.sound);
+        x += 8;
+        const SotnDagger *d = &e.dagger;
+        CHECK(Whole(e.x) == x && (e.x & 0xffff) == 0x1234 && d->timer == t && d->x[0] == x - 12 &&
+              d->x[1] == x + 12 && d->x[2] == x - 12 && d->x[3] == x + 12 && d->y[0] == 96 &&
+              d->y[2] == 104 && d->line_x[0] == x - 8 && d->line_x[1] == x - 12 * (t / 2) &&
+              d->line_y[0] == 99 && d->line_y[1] == 99 && d->quad_mode == 0x02 &&
+              d->line_mode == 0x33);
+    }
+    // The probe eight pixels ahead meets the wall at x120: bounce one pixel back per update.
+    const SotnDagger flown = e.dagger;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 2 && Whole(e.x) == 120 &&
+          e.velocity_x == -0x10000 && e.dagger.velocity_y == -0x28000 && e.dagger.timer == 64 &&
+          ev.disable_attack && ev.factories == 1 &&
+          ev.factory_packed[0] == SOTN_REBOUND_STONE_SPARKS && Whole(ev.factory_x) == 128 &&
+          ev.factory_y == e.y && ev.sound == 0x6a4 && e.dagger.x[0] == flown.x[0] &&
+          e.dagger.line_mode == 0x33);
+    for (Sint16 timer = 63; timer > 0; --timer)
+    {
+        const SotnSubweaponEntity before = e;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed && !ev.sound &&
+              e.dagger.timer == timer);
+        CHECK(e.x == before.x - 0x10000 && e.y == before.y + before.dagger.velocity_y &&
+              e.dagger.velocity_y == before.dagger.velocity_y + 0x2000 &&
+              e.dagger.rotate == (Sint16)(before.dagger.rotate - 0x80) &&
+              e.dagger.line_mode == 0x3b && e.dagger.quad_mode == (timer > 0x20 ? 0x02 : 0x37) &&
+              e.dagger.grey == (timer > 0x20 ? 0 : 0x60 - 2 * (0x21 - timer)));
+        const Sint16 base[4] = {0x800 - 0xd2, 0xd2, 0x800 + 0xd2, -0xd2};
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            SotnMathTrig t = {0};
+            CHECK(SotnMath_Trig(executable, (Sint16)(base[v] + e.dagger.rotate), &t));
+            CHECK(e.dagger.x[v] == Whole(e.x) + Floor(t.cosine * 0xca0, 20) &&
+                  e.dagger.y[v] == Whole(e.y) - Floor(-(t.sine * 0xca0), 20));
+        }
+    }
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    // Left-facing spin mirrors the corner angles and turns the other way.
+    e = fresh;
+    e.step = 2;
+    e.facing_left = true;
+    e.dagger.timer = 10;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.dagger.rotate == 0x80);
+    SotnMathTrig t0 = {0};
+    CHECK(SotnMath_Trig(executable, 0xd2 + 0x80, &t0) &&
+          e.dagger.x[0] == Whole(e.x) + Floor(t0.cosine * 0xca0, 20));
+    // Facing left, the blade and trail mirror; hitFlags 3 is neither a hit nor a guard.
+    e = fresh;
+    in.player_facing_left = true;
+    in.hit_flags = 3;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+          SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && Whole(e.x) == 32 &&
+          e.dagger.x[0] == 44 && e.dagger.x[1] == 20 && e.dagger.line_x[0] == 40 &&
+          e.dagger.line_x[1] == 32 && !ev.disable_attack);
+    in.player_facing_left = false;
+    in.hit_flags = 0;
+    // A side-only wall (collision type 2, EFFECT_SIDE without EFFECT_SOLID) also bounces it.
+    e = fresh;
+    in.collision = Map();
+    types[1] = 2;
+    for (Uint16 i = 0; i < 12 && e.step < 2; ++i)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    CHECK(e.step == 2 && Whole(e.x) == 120);
+    types[1] = 3;
+    // An enemy hit holds the blade four updates without moving or redrawing it.
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+          SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    const SotnSubweaponEntity held = e;
+    in.hit_flags = 1;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 3 && e.dagger.timer == 4 &&
+          ev.disable_attack && !ev.factories && e.x == held.x &&
+          !SDL_memcmp(e.dagger.x, held.dagger.x, sizeof(held.dagger.x)) &&
+          e.dagger.line_mode == 0x33);
+    in.hit_flags = 0;
+    for (Uint16 i = 0; i < 3; ++i)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed && e.x == held.x);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    // hitFlags 2 (a guard) bounces after the first one-pixel step.
+    e = held;
+    in.hit_flags = 2;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 2 &&
+          e.x == held.x + 0x10000 && ev.factories == 1 && Whole(ev.factory_x) == Whole(e.x) + 8 &&
+          ev.sound == 0x6a4);
+    in.hit_flags = 0;
+    e = (SotnSubweaponEntity){.id = SOTN_SUBWEAPON_DAGGER, .step = 4};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    return true;
+}
+// The dagger through the shared runtime: blueprint3, two rows, its group, the wall bounce's
+// tink factory and room cleanup.
+static bool DaggerRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    Uint8 *def = dra + 0x4a00 + SOTN_SUBWEAPON_DAGGER * 20U;
+    def[0] = 5;
+    def[2] = 1;
+    Put16(def + 4, 0x1040);
+    def[6] = 3;
+    def[7] = 4;
+    def[8] = 4;
+    def[10] = 0x5d;
+    def[11] = SOTN_DAGGER_BLUEPRINT;
+    def[12] = 2;
+    def[14] = 0x84;
+    const Uint8 blueprints[2][7] = {{3, 4, 1, 0xc1, 0, 0x22, 0}, {10, 5, 3, 0xc1, 3, 0x00, 0}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 6);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .camera_x = 20,
+        .player = {.hp = 70, .x = 60 * 65536, .y = 109 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 60 * 65536, .y = 109 * 65536, .priority = 148},
+              SOTN_DAGGER_BLUEPRINT, SOTN_SUBWEAPON_DAGGER << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *c = &r->children[16];
+    CHECK(c->subweapon && c->initialized && c->kind == SOTN_DAGGER_ENTITY &&
+          c->primitive_count == 2 && c->group == 7 && c->state.subweapon.attack.width == 4 &&
+          c->state.subweapon.attack.offset_x == 4 && r->use_ticks == 4 &&
+          r->subweapon_mask == (Uint64)1 << 16 && SotnBatRuntime_SubweaponValid(c, 16) &&
+          SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_DAGGER) == 1 &&
+          actors->primitives[c->primitives[1]].ability_kind == SOTN_DAGGER_ENTITY);
+    Uint16 ticks = 0;
+    while (c->state.subweapon.motion.step == 1 && ticks++ < 20)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    CHECK(c->state.subweapon.motion.step == 2 && !c->state.subweapon.attack.active &&
+          r->factories[0].cursor.blueprint == SOTN_REBOUND_STONE_SPARKS &&
+          Whole(r->factories[0].cursor.source.x) == 128);
+    CHECK(SotnBatRuntime_PruneSubweapons(r) && !c->kind);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -1680,7 +1876,8 @@ int main(void)
         Bible((SotnDataView){bytes, 0x23212}) && BibleRuntime((SotnDataView){bytes, 0x23212}) &&
         Runtime((SotnDataView){bytes, 0x23212}) && Beam((SotnDataView){bytes, 0x23212}) &&
         Sparks() && GiantCross((SotnDataView){bytes, 0x23212}) &&
-        CrossRuntime((SotnDataView){bytes, 0x23212});
+        CrossRuntime((SotnDataView){bytes, 0x23212}) && Dagger((SotnDataView){bytes, 0x23212}) &&
+        DaggerRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;
@@ -1693,6 +1890,7 @@ int main(void)
         "swing/launch/fall, trail fade, runtime trails/screen anchoring/room retention/cull; "
         "cross beam afterimage/birth/rise/factories/odd widening/clamped hold/spread/cull, giant "
         "cross rise/orbit/projected hitbox/priority/face order/NCLIP, particles' spark life, "
-        "runtime six screen-anchored crosses/contiguous rows/chain/prune");
+        "runtime six screen-anchored crosses/contiguous rows/chain/prune; dagger birth/flight/"
+        "wall and guard bounces/enemy hold/spin/fade, runtime rows/tink factory/prune");
     return 0;
 }

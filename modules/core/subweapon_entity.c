@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// dra/84B88.c:EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
+// dra/84B88.c:EntitySubwpnKnife/EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
 // EntityAguneaHitEnemy/EntitySubwpnCrashCross/EntitySubwpnCrashCrossParticles, wolfForm.c:
 // EntityGiantSpinningCross, 7879C.c:func_80119E78, 8A0A4.c:EntitySubwpnBible/
 // EntitySubwpnBibleTrail and rebound_stone.h, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
@@ -1026,9 +1026,132 @@ static void Sparks(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random
         }
     }
 }
+// EntitySubwpnKnife: eight one-pixel steps per update with a probe eight pixels ahead; a wall
+// (or hitFlags 2) bounces it back spinning, an enemy hit holds it four updates.
+static bool Dagger(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                   SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnDagger *d = &next.dagger;
+    Uint32 cursor = *random;
+    switch (e->step)
+    {
+    case 0:
+        next.flags = 0x08800000U; // FLAG_POS_CAMERA_LOCKED | FLAG_HAS_PRIMS
+        next.facing_left = in.player_facing_left;
+        if (!in.properties(in.context, &cursor))
+            return false;
+        next.hitbox_width = 4;
+        next.hitbox_height = 2;
+        next.hitbox_x = 4;
+        next.hitbox_y = 0;
+        if (!(in.player_status & 0x20U)) // PLAYER_STATUS_CROUCH
+            next.y = WithPixel(next.y, Pixel(next.y) - 9);
+        d->row_priority = (Uint16)(in.player_priority + 2U);
+        d->quad_mode = 0x0a; // DRAW_HIDE | DRAW_UNK02
+        d->line_mode = 0x3b; // DRAW_TPAGE2 | DRAW_TPAGE | DRAW_HIDE | DRAW_UNK02 | DRAW_TRANSP
+        next.velocity_x = next.facing_left ? -0x80000 : 0x80000;
+        out->sound = 0x60c; // SFX_WEAPON_SWISH_C
+        out->use_ticks = 4;
+        next.step = 1;
+        break;
+    case 1: {
+        d->timer = Word(d->timer + 1);
+        const Sint32 probe = next.velocity_x > 0 ? 8 : -8;
+        if (in.hit_flags == 1)
+        {
+            d->timer = 4;
+            next.step = 3;
+            out->disable_attack = true;
+            break;
+        }
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            next.x = WithPixel(next.x, Pixel(next.x) + (next.velocity_x > 0 ? 1 : -1));
+            SotnCollider col = {0};
+            if (!SotnCollision_Query(&in.collision, Pixel(next.x) + probe, Pixel(next.y), &col))
+                return false;
+            if (in.hit_flags == 2 || (col.effects & SOTN_EFFECT_BLOCK))
+            {
+                d->timer = 64;
+                next.velocity_x = -Asr(next.velocity_x, 3);
+                d->velocity_y = -0x28000;
+                out->disable_attack = true;
+                out->factories = 1;
+                out->factory_packed[0] = SOTN_REBOUND_STONE_SPARKS;
+                out->factory_x = WithPixel(next.x, Pixel(next.x) + probe);
+                out->factory_y = next.y;
+                out->sound = 0x6a4; // SFX_UI_SUBWEAPON_TINK
+                next.step = 2;
+                *e = next;
+                *random = cursor;
+                return true;
+            }
+        }
+        const Sint32 x = Pixel(next.x), y = Pixel(next.y);
+        const Sint32 ox = next.facing_left ? -12 : 12, oy = next.facing_left ? -8 : 8;
+        const Sint32 qx[4] = {x - ox, x + ox, x - ox, x + ox}, qy[4] = {y - 4, y - 4, y + 4, y + 4};
+        SDL_memcpy(d->x, qx, sizeof(qx));
+        SDL_memcpy(d->y, qy, sizeof(qy));
+        d->quad_mode &= 0xfff7U;
+        d->line_x[0] = x - oy;
+        d->line_y[0] = d->line_y[1] = y - 1;
+        d->line_x[1] = x - ox * (d->timer / 2);
+        d->line_mode &= 0xfff7U;
+        break;
+    }
+    case 2: {
+        d->timer = Word(d->timer - 1);
+        if (!d->timer)
+        {
+            next.removed = true;
+            break;
+        }
+        if (d->timer == 0x20)
+        {
+            d->quad_mode |= 0x35; // DRAW_TPAGE2 | DRAW_TPAGE | DRAW_COLORS | DRAW_TRANSP
+            d->grey = 0x60;
+        }
+        next.x = Add(next.x, next.velocity_x);
+        next.y = Add(next.y, d->velocity_y);
+        d->velocity_y = Add(d->velocity_y, 0x2000);
+        const Sint32 x = Pixel(next.x), y = Pixel(next.y);
+        Sint16 angle[4] = {0x800 - 0xd2, 0xd2, 0x800 + 0xd2, -0xd2};
+        if (next.facing_left)
+        {
+            const Sint16 flipped[4] = {0xd2, 0x800 - 0xd2, -0xd2, 0x800 + 0xd2};
+            SDL_memcpy(angle, flipped, sizeof(angle));
+            d->rotate = Word(d->rotate + 0x80);
+        }
+        else
+            d->rotate = Word(d->rotate - 0x80);
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, Word(angle[v] + d->rotate), &t))
+                return false;
+            d->x[v] = x + Word(Asr(t.cosine * 0xca0, 20));
+            d->y[v] = y - Word(Asr(-(t.sine * 0xca0), 20));
+        }
+        if (d->timer < 0x21)
+            d->grey = (Uint8)(d->grey - 2);
+        d->quad_mode &= 0xfff7U;
+        d->line_mode |= 8U;
+        break;
+    }
+    default:
+        d->timer = Word(d->timer - 1);
+        next.removed = !d->timer;
+        break;
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
-    return id == SOTN_SUBWEAPON_VIBHUTI                           ? SOTN_VIBHUTI_ROWS
+    return id == SOTN_SUBWEAPON_DAGGER                            ? SOTN_DAGGER_ROWS
+           : id == SOTN_SUBWEAPON_VIBHUTI                         ? SOTN_VIBHUTI_ROWS
            : id == SOTN_SUBWEAPON_REBOUND_STONE                   ? SOTN_REBOUND_STONE_LINES
            : id == SOTN_SUBWEAPON_AGUNEA                          ? SOTN_AGUNEA_ROWS
            : id == SOTN_AGUNEA_BOLT                               ? SOTN_AGUNEA_BOLT_ROWS
@@ -1046,12 +1169,13 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
                agunea = e && e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e && e->id == SOTN_AGUNEA_BOLT,
                bible = e && e->id == SOTN_SUBWEAPON_BIBLE, trail = e && e->id == SOTN_BIBLE_TRAIL,
                beam = e && e->id == SOTN_SUBWEAPON_CROSS, cross = e && e->id == SOTN_GIANT_CROSS,
-               sparks = e && e->id == SOTN_CROSS_PARTICLES;
+               sparks = e && e->id == SOTN_CROSS_PARTICLES,
+               dagger = e && e->id == SOTN_SUBWEAPON_DAGGER;
     if (!e || !random || !events || e->removed ||
-        (!vibhuti && !stone && !agunea && !bolt && !bible && !trail && !beam && !cross &&
-         !sparks) ||
-        (!in.properties && !bolt && !trail && !sparks) || (beam && e->step > 4) ||
-        (cross && e->step > 1) ||
+        (!vibhuti && !stone && !agunea && !bolt && !bible && !trail && !beam && !cross && !sparks &&
+         !dagger) ||
+        (dagger && e->step > 3) || (!in.properties && !bolt && !trail && !sparks) ||
+        (beam && e->step > 4) || (cross && e->step > 1) ||
         (sparks && (e->step > 1 || (e->step && (e->sparks.timer < 1 || e->sparks.timer > 192)))) ||
         (bible && (e->step > 4 || e->bible.mode < 0 || e->bible.mode > 2)) ||
         (trail && e->step > 2) ||
@@ -1088,6 +1212,8 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
     }
     if (beam)
         return Beam(e, in, random, events);
+    if (dagger)
+        return Dagger(e, in, random, events);
     if (cross)
         return GiantCross(e, in, random, events);
     if (bible)
