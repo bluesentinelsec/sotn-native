@@ -496,10 +496,54 @@ static bool HolySmoke(void)
     CHECK(updates == 16);
     return true;
 }
+// Profile14 (the stopwatch burst): behaviour12's streaks (ten up, ten down) with lifetime 63.
+static bool StopwatchBurst(void)
+{
+    Uint8 dra[0xdbd4] = {0};
+    Put32(dra + 0xdb98 + 14 * 4U, 0x800a0100U);
+    Uint8 *p = dra + 0x100;
+    p[0] = 20;
+    p[1] = p[2] = 127;
+    p[3] = 192;
+    p[4] = p[5] = 1;
+    Put16(p + 6, (Uint16)-2);
+    Put16(p + 8, 0x33);
+    Put16(p + 10, 12);
+    Put32(p + 12, 0xc800000);
+    const SotnDataView view = {dra, sizeof(dra)};
+    Uint16 rows = 0;
+    CHECK(SotnPlayerParticles_Rows(view, 0xe00, &rows) && rows == 21);
+    Put16(p + 10, 14);
+    CHECK(!SotnPlayerParticles_Rows(view, 0xe00, &rows));
+    Put16(p + 10, 12);
+    SotnPlayerParticles effect = {0};
+    Uint32 random = 31;
+    const SotnPlayerParticlesInput input = {.parameter = 0xe00,
+                                            .source = {.x = 90 * 65536, .y = 70 * 65536},
+                                            .player_priority = 148,
+                                            .allocated = true};
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && random == 31 &&
+          effect.count == 20 && effect.lifetime == 63 && effect.priority == 146);
+    for (Uint16 i = 0; i < 20; ++i)
+    {
+        const Sint32 index = i < 10 ? i : i - 10, speed = index * index * 6144 + 8192;
+        CHECK(effect.tiles[i].velocity_y == (i < 10 ? -speed : speed) &&
+              effect.tiles[i].x == 90 * 65536 && effect.tiles[i].timer == 63);
+    }
+    Uint16 updates = 0;
+    while (!effect.removed && updates < 80)
+    {
+        CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && random == 31);
+        ++updates;
+    }
+    CHECK(updates == 32);
+    return true;
+}
 int main(void)
 {
     return Run() && VectorParticles(5) && VectorParticles(6) && StoneParticles() && Vectors() &&
-                   Smoke() && ScatteredSmoke() && HurtSmoke() && SireParticles() && HolySmoke()
+                   Smoke() && ScatteredSmoke() && HurtSmoke() && SireParticles() && HolySmoke() &&
+                   StopwatchBurst()
                ? 0
                : 1;
 }

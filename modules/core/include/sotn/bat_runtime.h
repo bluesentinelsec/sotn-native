@@ -314,6 +314,9 @@ typedef struct SotnBatRuntime
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     bool cross_upload;    /**< The cross beam's one-row gradient upload intent (D_800B0788). */
     Uint32 holy_counter;  /**< DRA BSS D_8013841C (flame factory parameter); never saved. */
+    /** g_unkGraphicsStruct.D_800973FC: set by a live stopwatch, read by enemies, the clock room
+     * and familiars. Cleared by the stopwatch, pauseEnemies or the Fairy rescue cleanup. */
+    bool stopwatch;
     Uint64
         target_marks[2]; /**< New original flag80000 writes, committed with real row ownership. */
     Uint32 target_generations[SOTN_SPELL_TARGETS];
@@ -519,6 +522,7 @@ typedef struct SotnBatRuntimeInput
     SotnStoneDissolveUpload dissolve_upload;
     void *dissolve_context;
     Uint32 engine_timer;      /**< Actual g_Timer for entity32, distinct from gameplay clock. */
+    bool stopwatch_paused;    /**< g_unkGraphicsStruct.pauseEnemies from stage scripts. */
     bool holy_symbol_enabled; /**< Actual relic snapshot for selected water-pain Blink holding. */
 } SotnBatRuntimeInput;
 

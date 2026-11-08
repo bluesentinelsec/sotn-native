@@ -1127,8 +1127,14 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, holy water, Rebound Stone,
-// Vibhuti, Agunea, Bible, Cross):
+// g_unkGraphicsStruct.pauseEnemies: stage scripts that cannot be stopped by the stopwatch.
+static bool StopwatchPaused(SotnLaboratory *s)
+{
+    SotnActorControl control = {0};
+    return s->actors && SotnActors_GetControl(s->actors, &control) && control.block_stopwatch;
+}
+// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, holy water, stopwatch,
+// Rebound Stone, Vibhuti, Agunea, Bible, Cross):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1141,6 +1147,7 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     *handled =
         progress.subweapon == SOTN_SUBWEAPON_DAGGER || progress.subweapon == SOTN_SUBWEAPON_AXE ||
         progress.subweapon == SOTN_SUBWEAPON_HOLY_WATER ||
+        progress.subweapon == SOTN_SUBWEAPON_STOPWATCH ||
         progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
         progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
         progress.subweapon == SOTN_SUBWEAPON_AGUNEA || progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
@@ -1148,6 +1155,9 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     *used = false;
     *animation = 0;
     if (!*handled)
+        return true;
+    // The stopwatch is refused while stage scripts set pauseEnemies (func_8010EB5C returns 4).
+    if (progress.subweapon == SOTN_SUBWEAPON_STOPWATCH && StopwatchPaused(s))
         return true;
     SotnSubweaponDefinition definition = {0};
     if (!SotnSubweapon_Read(s->dra, progress.subweapon, &definition))
@@ -1430,6 +1440,7 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 .wolf_context = s,
                 .primitive_slots = primitive_slots,
                 .freeze = s->spell_freeze.request,
+                .stopwatch_paused = StopwatchPaused(s),
                 .game_timer = s->game_timer,
                 .engine_timer = s->system_timer,
                 .dissolve_image = &s->death_image,
@@ -1911,7 +1922,7 @@ static SotnSwordInput SwordInput(SotnLaboratory *s, SotnDataView overlay, SotnPl
                             .room_flags = flags,
                             .stage = s->stage_id,
                             .castle_flag = s->world.flags[464],
-                            .global_flash = SotnSubweapons_Frozen(s->subweapons),
+                            .global_flash = s->bat_runtime.stopwatch,
                             .event_source = {overlay, FAMILIAR_SWORD.events, 49},
                             .room = {.world = &s->world,
                                      .room_x = s->room.foreground.left,
@@ -1970,7 +1981,7 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
                   .cutscene = control.pause_disabled,
                   .enemies = enemies,
                   .inverted = s->stage_id >= 32,
-                  .global_flash = SotnSubweapons_Frozen(s->subweapons),
+                  .global_flash = s->bat_runtime.stopwatch,
                   .medicine_active = SotnBatRuntime_MedicinePresent(&s->bat_runtime)},
         .event_source = {overlay, FAMILIAR_FAIRY.events, 49},
         .room = {.world = &s->world,
@@ -3959,6 +3970,51 @@ static bool DrawCrossRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16
     }
     return DrawOriginalEffectQuad(s, &q);
 }
+// The stopwatch: dial page 0x1E (palette 0x17F, PAL_FILL_WHITE greyed 0x40/0x40/0x60 while it
+// bursts) and digits page 0x1A/0x186, all room words (DRAW_UNK02). Its circle: sixteen dithered
+// additive wedges (page 0x1A, PAL_FILL_WHITE, 0x435) in screen words, white-blue to dark blue.
+static bool DrawStopwatchRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16 row,
+                             Sint32 view_x, Sint32 view_y)
+{
+    SotnPlayerEffectQuad q = {0};
+    if (m->id == SOTN_SUBWEAPON_STOPWATCH)
+    {
+        const SotnStopwatch *w = &m->stopwatch;
+        if (row >= SOTN_STOPWATCH_ROWS || (w->draw_mode[row] & 8U))
+            return SDL_SetError("Stopwatch draw lost its shown row %u", row);
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.x[v] = BlinkWord(w->x[row][v] - view_x);
+            q.y[v] = BlinkWord(w->y[row][v] - view_y);
+            q.u[v] = w->u[row][v];
+            q.v[v] = w->v[row][v];
+            q.red[v] = q.green[v] = 0x40;
+            q.blue[v] = 0x60;
+        }
+        q.page = row ? 0x1a : 0x1e;
+        q.palette = row ? 0x186 : w->palette0;
+        q.priority = w->priority[row];
+        q.draw_mode = w->draw_mode[row];
+        return DrawOriginalEffectQuad(s, &q);
+    }
+    const SotnStopwatchCircle *c = &m->circle;
+    if (row >= SOTN_STOPWATCH_CIRCLE_ROWS)
+        return SDL_SetError("Stopwatch circle draw names a row it does not own");
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = c->x[row][v];
+        q.y[v] = c->y[row][v];
+        q.u[v] = v < 2 ? c->u[row][v] : 0x20;
+        q.v[v] = v < 2 ? c->v[row][v] : 0xe0;
+        q.red[v] = q.green[v] = v < 2 ? 0x40 : 0;
+        q.blue[v] = v < 2 ? 0x40 : 0x20;
+    }
+    q.page = 0x1a;
+    q.palette = 0x15f;
+    q.priority = 0xc2;
+    q.draw_mode = 0x435;
+    return DrawOriginalEffectQuad(s, &q);
+}
 static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p);
 // Holy water: the bottle is DRA bank 9 frame 0x1D; shards are untextured G4s around their
 // carriers (D_800B0658, x2 = x3); flames are additive GT4 strips on page 0x1A (palette 0x1B2)
@@ -4863,6 +4919,23 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                          .primitive = (Uint16)(owner * 16U),
                                                          .kind = SOTN_DRAW_SUBWEAPON_LINE})))
                     return false;
+            }
+            // The stopwatch's dial and digits (unhidden rows) and its circle's sixteen wedges.
+            if (child->subweapon && child->initialized &&
+                (child->state.subweapon.motion.id == SOTN_SUBWEAPON_STOPWATCH ||
+                 child->state.subweapon.motion.id == SOTN_STOPWATCH_CIRCLE))
+            {
+                const SotnSubweaponEntity *m = &child->state.subweapon.motion;
+                const bool watch = m->id == SOTN_SUBWEAPON_STOPWATCH;
+                for (Uint16 j = 0; j < (watch ? SOTN_STOPWATCH_ROWS : SOTN_STOPWATCH_CIRCLE_ROWS);
+                     ++j)
+                    if ((!watch || !(m->stopwatch.draw_mode[j] & 8U)) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = watch ? m->stopwatch.priority[j] : 0xc2,
+                                            .primitive = (Uint16)(owner * 64U + j),
+                                            .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                        return false;
             }
             // The holy water bottle's sprite, its glass shards (rows 8..15) and flame strips.
             if (child->subweapon && child->initialized)
@@ -5847,6 +5920,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     q.y[v] = BlinkWord(cy + ((v & 2U) ? h : -h) - view_y);
                 }
                 if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
+                (m->id == SOTN_SUBWEAPON_STOPWATCH || m->id == SOTN_STOPWATCH_CIRCLE) &&
+                SotnBatRuntime_SubweaponValid(c, index))
+            {
+                if (!DrawStopwatchRow(session, m, row, view_x, view_y) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;

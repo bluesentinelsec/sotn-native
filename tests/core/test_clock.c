@@ -1,4 +1,5 @@
 #include "actors_internal.h"
+#include <sotn/bat_runtime.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
     {                                                                                              \
@@ -93,6 +94,16 @@ static bool Clock(Fixture *f)
     for (Uint32 i = 0; i < 97; ++i)
         CHECK(Step(s, f, 36261 + i));
     CHECK(Tile(s, 0xc4) == 5 && Tile(s, 0xc5) == 0);
+    // A live stopwatch (the shared runtime's D_800973FC) holds the lower statue's state.
+    SotnBatRuntime *runtime = SDL_calloc(1, sizeof(*runtime));
+    CHECK(runtime && SotnActors_SetBatRuntime(s, runtime));
+    runtime->stopwatch = true;
+    s->clock_statues[0] = true;
+    CHECK(Step(s, f, 36400) && s->clock_statues[0]);
+    runtime->stopwatch = false;
+    CHECK(Step(s, f, 36401) && !s->clock_statues[0]);
+    CHECK(SotnActors_SetBatRuntime(s, NULL));
+    SDL_free(runtime);
     CHECK(!SotnActors_SetServices(s, (SotnDataView){f->exe, sizeof(f->exe)},
                                   99999ULL * 3600 * 60 + 1, true));
     s->world->flags[SOTN_CLOCK_FLOOR] = 2;

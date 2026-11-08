@@ -70,7 +70,17 @@ enum
     SOTN_HOLY_WATER_GLASS_BLUEPRINT = 59,
     SOTN_HOLY_WATER_GLASS_ENTITY = 40,
     SOTN_HOLY_WATER_GLASS_ROWS = 16, /**< Eight hidden FakePrim carriers, then eight G4 shards. */
-    SOTN_HOLY_WATER_SMOKE = 0x70004  /**< FACTORY(BP_4, 7): profile-7 green smoke. */
+    SOTN_HOLY_WATER_SMOKE = 0x70004, /**< FACTORY(BP_4, 7): profile-7 green smoke. */
+    SOTN_SUBWEAPON_STOPWATCH = 6,
+    SOTN_STOPWATCH_BLUEPRINT = 71,
+    SOTN_STOPWATCH_ENTITY = 41,
+    SOTN_STOPWATCH_ROWS = 3, /**< The dial and two countdown digits. */
+    /** Native key for EntityStopWatchExpandingCircle (entity 42, blueprint 75, subweaponId 0). */
+    SOTN_STOPWATCH_CIRCLE = 0x12a,
+    SOTN_STOPWATCH_CIRCLE_BLUEPRINT = 75,
+    SOTN_STOPWATCH_CIRCLE_ENTITY = 42,
+    SOTN_STOPWATCH_CIRCLE_ROWS = 16,
+    SOTN_STOPWATCH_BURST = 0xe0004 /**< FACTORY(BP_4, 14): the profile-14 streak burst. */
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -271,6 +281,33 @@ typedef struct SotnHolyFlame
     Uint16 row_priority;
 } SotnHolyFlame;
 
+/** @brief Original EntityStopWatch ext words and its three GT4 rows (DRAW_UNK02 room words): the
+ * dial (page 0x1E, palette 0x17F; PAL_FILL_WHITE and DRAW_COLORS 0x40/0x40/0x60 once it bursts)
+ * and two digits (page 0x1A, palette 0x186). Rows with DRAW_UNK_200 follow post-stage shoves. */
+typedef struct SotnStopwatch
+{
+    Sint32 x[3][4], y[3][4];
+    Sint32 height;     /**< unk84 (16.16): lift above the hover point. */
+    Sint32 velocity;   /**< unk88 (16.16): bounce speed. */
+    Sint16 t;          /**< ext t: countdown digit, later the burst clock. */
+    Sint16 tick;       /**< unk7E: updates within the current second (to 80). */
+    Sint16 angle;      /**< unk80: dial tilt. */
+    Sint16 scale;      /**< unk82: grow-in percentage (to 100). */
+    Sint16 bounce;     /**< unk8C: the next hop is the higher one. */
+    Sint16 two_digits; /**< unk8E. */
+    Uint8 u[3][4], v[3][4];
+    Uint16 draw_mode[3], priority[3], palette0;
+} SotnStopwatch;
+
+/** @brief Original EntityStopWatchExpandingCircle: sixteen dithered additive GT4 wedges (page 0x1A,
+ * PAL_FILL_WHITE, priority 0xC2) in screen words (no DRAW_UNK02), regrown from the entity. */
+typedef struct SotnStopwatchCircle
+{
+    Sint16 x[16][4], y[16][4];
+    Uint8 u[16][2], v[16][2]; /**< Outer corners; the inner ones are (0x20, 0xE0). */
+    Sint16 timer, size;
+} SotnStopwatchCircle;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -297,6 +334,8 @@ typedef struct SotnSubweaponEntity
         SotnHolyWater holy;
         SotnHolyGlass glass;
         SotnHolyFlame flame;
+        SotnStopwatch stopwatch;
+        SotnStopwatchCircle circle;
     };
 } SotnSubweaponEntity;
 
@@ -332,6 +371,7 @@ typedef struct SotnSubweaponInput
     Uint32 engine_timer;       /**< g_Timer: the cross beam widens on odd frames. */
     Uint16 crash;              /**< func_8011A290's crashId for this entity's definition. */
     Uint32 flame_counter;      /**< DRA BSS D_8013841C: the holy water flames' factory parameter. */
+    bool enemies_paused;       /**< g_unkGraphicsStruct.pauseEnemies (stage scripts). */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */
@@ -352,6 +392,8 @@ typedef struct SotnSubweaponEvents
     bool volume_sound;           /**< sound is PlaySfxVolPan(sound, volume, 0). */
     bool flame_counter_step;     /**< D_8013841C++ after a flame factory request. */
     bool attack_set;             /**< hitboxState written this callback (attack_on: 2, else 0). */
+    bool stopwatch_set;          /**< g_unkGraphicsStruct.D_800973FC = 1 (enemies stop). */
+    bool stopwatch_clear;        /**< g_unkGraphicsStruct.D_800973FC = 0. */
     bool attack_on;
     Uint16 volume;
     bool upload_gradient; /**< LoadImage(&D_800B0788, D_800B06C8): the beam gradient. */
@@ -385,7 +427,7 @@ bool SotnSubweaponEntity_AxeTint(SotnDataView dra, Uint16 index, Uint8 rgb[3]);
  * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail,
  * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles,
  * EntitySubwpnKnife, EntitySubwpnThrownAxe, EntitySubwpnHolyWater, EntitySubwpnHolyWaterBreakGlass,
- * EntitySubwpnHolyWaterFlame).
+ * EntitySubwpnHolyWaterFlame, EntityStopWatch, EntityStopWatchExpandingCircle).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth
