@@ -81,6 +81,10 @@ struct SotnPlayer
     void *throwing_context;
     SotnPlayerSubweaponUse subweapon_use;
     void *subweapon_context;
+    /** g_unkGraphicsStruct.D_800973FC this update and EntityAlucard's D_80137FB8 copy of it. */
+    bool stopwatch_active, stopwatch_previous;
+    SotnPlayerMedicineFactory stopwatch_factory; /**< BP_120 owner (NULL: unbound). */
+    void *stopwatch_context;
     Uint8 throwing_count[2];
     Uint8 special_count[2]; /**< Live children carrying each hand's QCF special equip id. */
     Uint8 special_cross[2]; /**< The same special's live children with the other hand's params. */

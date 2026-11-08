@@ -2628,6 +2628,121 @@ static bool StopwatchRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// func_80123F78: the BP_120 tint. D_800973FC == 0 ends it (even at birth); the birth needs the
+// normal animSet, copies the frame/facing/priority-2; g3 then fades 0x80 -> 3 over 125 updates.
+static bool StopwatchTint(void)
+{
+    Uint32 random = 0x77;
+    SotnSubweaponEvents ev = {0};
+    SotnSubweaponInput in = {.stopwatch = true,
+                             .player_normal_set = true,
+                             .player_sprite = 0x8023,
+                             .player_priority = 148,
+                             .player_facing_left = true};
+    SotnSubweaponEntity e = {.x = 7 * 65536, .y = 9 * 65536, .id = SOTN_STOPWATCH_TINT};
+    CHECK(SotnSubweaponEntity_Known(SOTN_STOPWATCH_TINT) &&
+          !SotnSubweaponEntity_Rows(SOTN_STOPWATCH_TINT));
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed && e.step == 1 &&
+          e.flags == 0x0c030000U && e.tint.sprite == 0x8023 && e.priority == 146 && e.facing_left &&
+          e.tint.grey == 0x80 && e.tint.color_enabled && random == 0x77 && !ev.sound &&
+          !ev.factories && e.x == 7 * 65536);
+    // The frame stays the birth frame.
+    in.player_sprite = 0x44;
+    in.player_facing_left = false;
+    Uint16 updates = 0;
+    while (!e.removed)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        ++updates;
+        if (!e.removed)
+            CHECK(e.tint.grey == 0x80 - updates && e.tint.sprite == 0x8023 && e.facing_left &&
+                  e.tint.color_enabled);
+    }
+    CHECK(updates == 125 && !e.tint.color_enabled && random == 0x77);
+    // Another animSet (Bat/Wolf/Axe Armor) retires the birth after its flags.
+    in.player_normal_set = false;
+    e = (SotnSubweaponEntity){.id = SOTN_STOPWATCH_TINT};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && !e.step &&
+          e.flags == 0x0c030000U && !e.tint.color_enabled);
+    // The freeze ending retires it at once, at birth too (no flags written).
+    in.player_normal_set = true;
+    e = (SotnSubweaponEntity){.id = SOTN_STOPWATCH_TINT};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1);
+    in.stopwatch = false;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && !e.tint.color_enabled &&
+          e.tint.grey == 0x80);
+    e = (SotnSubweaponEntity){.id = SOTN_STOPWATCH_TINT};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && !e.flags);
+    // Invalid cursors fail without mutation.
+    in.stopwatch = true;
+    e = (SotnSubweaponEntity){.id = SOTN_STOPWATCH_TINT, .step = 1, .tint = {.grey = 3}};
+    const SotnSubweaponEntity kept = e;
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !SDL_memcmp(&e, &kept, sizeof(e)));
+    e = (SotnSubweaponEntity){.id = SOTN_STOPWATCH_TINT, .step = 2, .tint = {.grey = 9}};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    return true;
+}
+static bool StopwatchTintRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    const Uint8 blueprint[6] = {64, 1, 0xc1, 0, 0x00, 0};
+    SDL_memcpy(dra + 0xd1d4 + SOTN_STOPWATCH_TINT_BLUEPRINT * 6U, blueprint, 6);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = executable,
+                              .food_collision = Map(),
+                              .player = {.hp = 70,
+                                         .x = 120 * 65536,
+                                         .y = 110 * 65536,
+                                         .priority = 148,
+                                         .facing_left = true,
+                                         .animation_bank = 1,
+                                         .animation = {.sprite = 0x31}}};
+    r->stopwatch = true;
+    bool allocated = false;
+    CHECK(!SotnBatRuntime_RequestSubweapon(r, (SotnPlayerFactorySource){.priority = 148},
+                                           SOTN_STOPWATCH_TINT_BLUEPRINT, 1, &allocated));
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r,
+              (SotnPlayerFactorySource){
+                  .x = 120 * 65536, .y = 110 * 65536, .priority = 148, .facing_left = true},
+              SOTN_STOPWATCH_TINT_BLUEPRINT, 0, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *t = &r->children[47]; // Kind0: slots 32..63 from the top.
+    const SotnSubweaponEntity *m = &t->state.subweapon.motion;
+    CHECK(t->subweapon && t->initialized && t->kind == SOTN_STOPWATCH_TINT_ENTITY &&
+          !t->primitive_count && !t->group && !t->state.subweapon.attack.active &&
+          m->tint.sprite == 0x31 && m->priority == 146 && m->facing_left && m->x == 120 * 65536 &&
+          SotnBatRuntime_SubweaponValid(t, 47) && !r->sound_count);
+    // FLAG_UNK_10000: frozen updates fade it; FLAG_UNK_20000 keeps it across rooms.
+    in.freeze = 1;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          m->tint.grey == 0x7f);
+    in.freeze = 0;
+    CHECK(SotnBatRuntime_PruneSubweapons(r) && t->kind == SOTN_STOPWATCH_TINT_ENTITY);
+    // The freeze ending retires it.
+    r->stopwatch = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          !t->kind);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -2675,7 +2790,8 @@ int main(void)
         HolyGlass() && HolyFlame((SotnDataView){bytes, 0x23212}) &&
         HolyRuntime((SotnDataView){bytes, 0x23212}) && Stopwatch((SotnDataView){bytes, 0x23212}) &&
         StopwatchCircle((SotnDataView){bytes, 0x23212}) &&
-        StopwatchRuntime((SotnDataView){bytes, 0x23212});
+        StopwatchRuntime((SotnDataView){bytes, 0x23212}) && StopwatchTint() &&
+        StopwatchTintRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;

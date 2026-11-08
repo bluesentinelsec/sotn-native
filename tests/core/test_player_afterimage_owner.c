@@ -106,7 +106,16 @@ static bool StatesAndFailure(Fixture *f)
               f->p->afterimage_timer15 == 4 && !f->p->afterimage.displays[0].sprite &&
               !f->p->afterimage.samples[0].sprite);
     }
+    // The stopwatch's enemy freeze (D_800973FC) resets them in a normal state too.
     f->p->step = SOTN_PLAYER_STAND;
+    f->p->stopwatch_active = true;
+    f->p->afterimage_timer15 = 0;
+    f->p->afterimage.disabled = false;
+    f->p->afterimage.displays[0].sprite = 1;
+    f->p->afterimage.samples[0].sprite = 1;
+    CHECK(SotnPlayer_AfterimageCapture(f->p) && f->p->afterimage.disabled &&
+          f->p->afterimage_timer15 == 4 && !f->p->afterimage.displays[0].sprite);
+    f->p->stopwatch_active = false;
     f->p->substep = 4;
     CHECK(SotnPlayer_AfterimageCapture(f->p) && f->p->afterimage.disabled);
     f->p->substep = 0;

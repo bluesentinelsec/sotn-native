@@ -2943,6 +2943,22 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
+    // EntityAlucard first: the update that sees D_800973FC newly set (D_80137FB8 holds the last
+    // value) requests BP_120, the player's white tint, from the player's current position.
+    if (next.stopwatch_active && !next.stopwatch_previous)
+    {
+        SotnPlayerState now = {0};
+        bool allocated = false;
+        if (!next.stopwatch_factory || !SotnPlayer_GetState(player, &now) ||
+            !next.stopwatch_factory(next.stopwatch_context,
+                                    (SotnPlayerFactorySource){.x = next.x.value,
+                                                              .y = next.y.value,
+                                                              .priority = now.priority,
+                                                              .facing_left = next.facing_left},
+                                    120, 0, &allocated))
+            return false;
+    }
+    next.stopwatch_previous = next.stopwatch_active;
     if (next.hammer_timer)
     {
         const Uint32 bits = (Uint32)next.hammer_timer - 1U;
@@ -4256,6 +4272,16 @@ void SotnPlayer_Close(SotnPlayer *player)
     SDL_free(player);
 }
 
+bool SotnPlayer_SetStopwatchContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                    void *context, bool active)
+{
+    if (player == NULL || (active && factory == NULL))
+        return SDL_SetError("The stopwatch's player tint requires its actual factory owner");
+    player->stopwatch_factory = factory;
+    player->stopwatch_context = context;
+    player->stopwatch_active = active;
+    return true;
+}
 bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context)
 {
     if (player == NULL)

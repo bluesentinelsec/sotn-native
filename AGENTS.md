@@ -117,7 +117,10 @@ D_800973FC as SotnBatRuntime.stopwatch (enemies via actors->bat_runtime, marble 
 global_flash; ClearPlayerRuntime clears it with a live entity41). Three DRAW_UNK02 rows; PlayerShove
 moves the entity only while FLAG_POS_PLAYER_LOCKED (DRAW_UNK02 beats DRAW_UNK_200). Circle bp75 is
 KIND 0 (slots 32..63); FACTORY(4,14) particles are profile14 = behaviour12 streaks with camera
-lock. Not yet: BP_120 tint (func_80123F78), afterimage reset, MuteCd, func_800F27F4 gate. Every
+lock. The freeze's first player update requests BP_120 (func_80123F78: rowless entity64 copying
+the player's frame through g_PlayerDraw[13], PAL_FILL_WHITE additive, 0x80->4 fade, ends with the
+freeze, normal animSet only); every frozen player update resets afterimages. Not yet: MuteCd,
+func_800F27F4 (Faerie/Sprite speech gate only). Every
 subweapon now runs on the shared runtime; the legacy service is removed (subweapon.c keeps the
 definition read, Heart broach cost and func_800FE3C4 power).
 

@@ -57,12 +57,39 @@ The runtime owns `D_800973FC` as `SotnBatRuntime.stopwatch` (never saved). These
 
 The Fairy rescue cleanup clears it when it removes a live watch (its entity 0x29 search).
 
-These original effects of an active stopwatch are **not yet implemented**, as before:
+## Player effects
 
-- the `BP_120` player tint entity (`func_80123F78`);
-- the per-update afterimage reset;
-- CD music muting (`MuteCd`);
-- the engine's menu/map gate (`func_800F27F4`).
+The player update reads the freeze as `EntityAlucard` does:
+
+- **Tint request.** The first player update that sees the freeze set (the original's
+  `D_80137FB8` holds the last value) requests `BP_120` first, from the player's position before
+  movement. A failed player update requests it again on the next update.
+- **Afterimages.** Every player update that sees the freeze resets the afterimages
+  (`func_8010DFF0(1, 1)`), as status `NO_AFTERIMAGE` does.
+
+`BP_120` creates one rowless `func_80123F78` tint (entity 64, slots 32..63 from the top):
+
+- **End.** As soon as the freeze clears it switches off its colour blend and retires, at birth
+  too.
+- **Birth.** Flags `FLAG_UNK_10000 | FLAG_UNK_20000 | KEEP_ALIVE_OFFCAMERA |
+  FLAG_POS_CAMERA_LOCKED`, so it fades through spell freezes and stays across rooms.
+  - Outside the normal animation set (Bat, Wolf, Axe Armor) it retires.
+  - It copies the player's current frame (never animated again) and facing, and sits two
+    priorities below the player.
+- **Drawing.** The frame is drawn through `g_PlayerDraw[13]` (its own DRA texture slot) with
+  `PAL_FILL_WHITE`, additive blending and the colour blend: a white glow of the pose.
+- **Fade.** The blend starts at 0x80 and falls by one each update; the tint retires below four,
+  125 updates after its birth.
+
+The original also copies the player's draw flags. With the entity's zero rotate and scale
+fields, only a scale flag would change the result (a zero-size, invisible tint). The native tint
+does not copy them, so a scaled player at a freeze's start would show a tint the original hides.
+
+These original effects of an active stopwatch are **not yet implemented**:
+
+- CD music muting (`MuteCd`, with its `stopMusicFlag` resume branches);
+- `func_800F27F4`, which gates only the Faerie and Sprite familiars' speech (neither runs
+  natively yet).
 
 ## Validation
 
@@ -75,18 +102,27 @@ These original effects of an active stopwatch are **not yet implemented**, as be
   - The clock room holding its statue while the runtime's watch is live.
   - Mutation: two mutants survive, both equivalent: the rise never lands exactly on 26, and the
     tilt is never exactly zero at a hop.
+  - The tint's birth copies, animSet refusal, 125-update fade and freeze end; its runtime request,
+    slot, frozen fade, room retention and retirement; the player's one request per freeze start
+    (and again after a failed update); the afterimage reset (a mutant without it fails).
 - **Private emulator comparison.**
   - It runs the original `EntityStopWatch` and `EntityStopWatchExpandingCircle` on the actual
     DRA/SLUS with a wandering player and injected pauses.
   - 160 contexts and 38,676 callbacks match: 24 paused births, 22 pause cancels, 3,022 hops and
     89 bursts.
+  - The original `func_80123F78` with toggled freezes, animSets and player frames: 240 contexts
+    and 15,230 callbacks match (172 births, 28 refusals, 14,818 fade updates, 62 fade ends,
+    150 freeze ends), including `g_PlayerDraw[13]`. Three native mutants fail it.
 - **Private LLDB probe.** It uses the stopwatch in the Laboratory by pad input, facing both ways.
   - A `pauseEnemies` refusal and a chain refusal.
   - A zombie frozen for all 531 updates of the watch, then walking again.
   - The drawn watch, circle and burst.
+  - A second probe: one tint copying the player's frame, fading over 125 updates and drawing
+    (about 1,100 pixels), with no afterimage display through 531 frozen updates while the player
+    walks (294 appear without the reset).
 
 These use explicit subweapon/hearts/protection/position fixtures, not acquisition, route or
 console evidence.
 
-Adapted source: `src/dra/8A0A4.c` and `7E4BC.c` at the pinned reconstructed revision
+Adapted source: `src/dra/8A0A4.c`, `7E4BC.c` and `692E8.c` at the pinned reconstructed revision
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, AGPL-3.0-or-later.
