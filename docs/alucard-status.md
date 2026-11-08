@@ -183,7 +183,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   integrated acceptance must finish before enabling it. Seven signed-word character
   records already receive actual raw enemy rewards and menu load counts, and ordinary v11
   saves persist them. The Sword familiar, including Sword Brothers39, now runs; other
-  familiar owners remain unavailable. Supplied resource/card/item/health/clock
+  familiar owners remain unavailable. The [Ghost familiar component](ghost-familiar.md) now
+  reconstructs tt_001's behavior; its session, menu and combat integration remain open.
+  Supplied resource/card/item/health/clock
   fixtures remain separate from ordinary selection, acquisition, routes and console proof.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
