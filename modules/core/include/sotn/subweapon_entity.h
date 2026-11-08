@@ -52,7 +52,11 @@ enum
     SOTN_SUBWEAPON_DAGGER = 1,
     SOTN_DAGGER_BLUEPRINT = 3,
     SOTN_DAGGER_ENTITY = 4,
-    SOTN_DAGGER_ROWS = 2 /**< AllocPrimitives(PRIM_GT4, 2): the blade, then a LINE_G2 trail. */
+    SOTN_DAGGER_ROWS = 2, /**< AllocPrimitives(PRIM_GT4, 2): the blade, then a LINE_G2 trail. */
+    SOTN_SUBWEAPON_AXE = 2,
+    SOTN_AXE_BLUEPRINT = 9,
+    SOTN_AXE_ENTITY = 10,
+    SOTN_AXE_ROWS = 5 /**< AllocPrimitives(PRIM_GT4, 5): the axe and four afterimages. */
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -197,6 +201,27 @@ typedef struct SotnDagger
     Uint8 grey;                  /**< Blade PGREY once its fade starts (DRAW_COLORS). */
 } SotnDagger;
 
+/** @brief Original EntitySubwpnThrownAxe ext words and its five GT4 rows (page 0x1C, palette
+ * 0x1AB/0x1AC by g_GameTimer). No row has DRAW_UNK02, so rows keep original screen words. Row 0
+ * is the axe; rows 1..4 are afterimages copying row 0's words when their pose starts, tinted
+ * additively from D_800B0628 for ten updates. */
+typedef struct SotnAxe
+{
+    Sint16 x[SOTN_AXE_ROWS][4], y[SOTN_AXE_ROWS][4];
+    Uint8 visible;   /**< Row bits without DRAW_HIDE. */
+    Uint8 shade[4];  /**< unk8C: an afterimage's colour index, post-incremented each update. */
+    Uint8 active[4]; /**< unk90. */
+    Uint8 fresh[4];  /**< unk94: copy row 0's words on the next pass. */
+    Uint8 tint[4];   /**< Colour index the afterimage shows this update. */
+    Sint16 angle;    /**< unk7C. */
+    Sint32 volume;   /**< unk98: spin swish volume, 0x7F minus eight per swish. */
+    Sint32 velocity_y;
+    Uint16 pose;
+    Sint16 pose_timer;
+    Uint16 palette;      /**< Every row's CLUT this update. */
+    Uint16 row_priority; /**< The player's priority - 2 at birth. */
+} SotnAxe;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -219,6 +244,7 @@ typedef struct SotnSubweaponEntity
         SotnGiantCross cross;
         SotnCrossParticles sparks;
         SotnDagger dagger;
+        SotnAxe axe;
     };
 } SotnSubweaponEntity;
 
@@ -270,7 +296,9 @@ typedef struct SotnSubweaponEvents
     Uint16 hearts_spent;         /**< g_Status.hearts decrement. */
     bool reset_afterimages;      /**< func_8010DFF0(1, 1), even before a failed birth. */
     Uint8 spell_use_ticks;       /**< g_Player.timers[12]. */
-    bool upload_gradient;        /**< LoadImage(&D_800B0788, D_800B06C8): the beam gradient. */
+    bool volume_sound;           /**< sound is PlaySfxVolPan(sound, volume, 0). */
+    Uint16 volume;
+    bool upload_gradient; /**< LoadImage(&D_800B0788, D_800B06C8): the beam gradient. */
 } SotnSubweaponEvents;
 
 /** @brief Rows a supported subweapon entity leases at birth (zero when unsupported). */
@@ -284,10 +312,13 @@ bool SotnSubweaponEntity_CrossFace(SotnDataView dra, Uint16 row, Uint8 u[4], Uin
  * @param dra Private DRA image. @param frame Frame 0..5. @param u Receives u0..u3.
  * @param v Receives v0..v3. @return Success or SDL error. */
 bool SotnSubweaponEntity_SparkFace(SotnDataView dra, Uint16 frame, Uint8 u[4], Uint8 v[4]);
+/** @brief Read an axe afterimage colour (D_800B0628). @param dra Private DRA image.
+ * @param index Colour 0..9. @param rgb Receives red, green, blue. @return Success or error. */
+bool SotnSubweaponEntity_AxeTint(SotnDataView dra, Uint16 index, Uint8 rgb[3]);
 /** @brief Run one DRA subweapon callback (EntitySubwpnThrownVibhuti, EntitySubwpnReboundStone,
  * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail,
  * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles,
- * EntitySubwpnKnife).
+ * EntitySubwpnKnife, EntitySubwpnThrownAxe).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth

@@ -97,7 +97,13 @@ two rows (blade GT4 page0x1C/0x1AB + LINE_G2 trail, both DRAW_UNK02/room words, 
 CAMERA_LOCKED, crouch-status(0x20) lift, 4x2 hitbox offX4, SetSpeedX 8, eight 1-px steps probing
 x+-8 (EFFECT_BLOCK incl. side-only, or hitFlags2: bounce -vx>>3/-2.5, FACTORY(10) at the probe,
 TINK, no redraw), hitFlags1 four-update hold, 64-update rcos/rsin spin with 0x20 grey fade.
-Axe/holy water/stopwatch still use the old service until moved; it is then removed.
+[Axe](docs/player-axe.md) (subweapon2, bp9 origin2, entity10): five GT4 rows in SCREEN words (no
+DRAW_UNK02; row0 recomputed, afterimages copy it), CAMERA_LOCKED|KEEP_ALIVE|0x20000 (room-retained,
+room-shifted), reversed facing + SetSpeedX(FIX(-2)) = forward, PlaySfxVolPan swish each quarter
+turn (volume 0x7F-8; SotnSubweaponEvents.volume_sound), gravity 34/128 capped 8, line>0x100 exit,
+hitFlags2 bounce (-(vx/2) truncated, FIX(-3), 0xC0 reverse spin, gravity 18/128), three-update
+pose cycle, D_800B0628 tints, g_GameTimer CLUT. Holy water/stopwatch still use the old service
+until moved; it is then removed.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
@@ -2429,8 +2435,8 @@ Version 9 saves retain this supported progress; versions 1/2/3/4 migrate explici
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
 
-The [selected subweapon service](docs/laboratory-subweapons.md) integrates axe,
-holy water, and stopwatch; the other subweapons now run on the shared player runtime.
+The [selected subweapon service](docs/laboratory-subweapons.md) integrates holy water
+and stopwatch; the other subweapons now run on the shared player runtime.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
 Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character

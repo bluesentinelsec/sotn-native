@@ -1835,6 +1835,223 @@ static bool DaggerRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// EntitySubwpnThrownAxe: reversed facing, lift/crouch, spin swishes with fading volume, gravity
+// cap, line-0x100 retirement, the hitFlags 2 bounce (hitFlags 1 passes through), the pose
+// cycle, afterimage copies/tints and the exact corners.
+static bool Axe(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 30,
+                             .screen_y = 10,
+                             .player_priority = 148,
+                             .game_timer = 2};
+    const SotnSubweaponEntity fresh = {
+        .x = 130 * 65536 + 0x1234, .y = 150 * 65536 + 0x5678, .id = SOTN_SUBWEAPON_AXE};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 7;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == 7 && !rolls);
+    in.allocated = true;
+    for (Uint16 crouch = 0; crouch < 2; ++crouch)
+    {
+        e = fresh;
+        in.player_status = crouch ? 0x20U : 0x8U;
+        in.player_facing_left = crouch != 0;
+        Uint32 expected = random;
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && e.step == 1 &&
+              e.flags == 0x0c820000U && e.facing_left == !crouch &&
+              e.velocity_x == (crouch ? -0x20000 : 0x20000) && e.axe.velocity_y == -0x60000 &&
+              e.axe.angle == (crouch ? 0xc00 : 0x400) &&
+              e.y == fresh.y - (crouch ? 0 : 12 * 65536) && e.hitbox_width == 12 &&
+              e.hitbox_height == 12 && e.axe.volume == 0x7f && e.axe.row_priority == 146 &&
+              ev.sound == 0x60c && !ev.volume_sound && ev.use_ticks == 4 && e.axe.visible == 0x03 &&
+              e.axe.pose == 1 && e.axe.pose_timer == 2 && e.axe.palette == 0x1ac &&
+              e.axe.active[0] && !e.axe.fresh[0] && e.axe.shade[0] == 1 && !e.axe.tint[0] &&
+              !SDL_memcmp(e.axe.x[1], e.axe.x[0], sizeof(e.axe.x[0])));
+    }
+    // Flight (thrown facing right, so the axe faces left): exact corners, swishes every quarter
+    // turn at a falling volume, the pose cycle and ten-update afterimages.
+    in.player_status = 0;
+    in.player_facing_left = false;
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    Uint16 swishes = 0;
+    Sint32 volume = 0x7f;
+    for (Uint16 tick = 1; tick < 200 && !e.removed; ++tick)
+    {
+        const SotnSubweaponEntity before = e;
+        in.game_timer = tick;
+        in.hit_flags = tick == 5 ? 1 : 0; // an ordinary hit does not stop it
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1);
+        if (e.removed)
+        {
+            CHECK(Whole(before.y + SDL_min(before.axe.velocity_y + 0x4400, 0x80000)) - 10 > 0x100);
+            break;
+        }
+        const Sint32 vy = SDL_min(before.axe.velocity_y + 0x4400, 0x80000);
+        CHECK(e.axe.angle == (Sint16)(before.axe.angle - 0x80) && e.axe.velocity_y == vy &&
+              e.y == before.y + vy && e.x == before.x + 0x20000 && !ev.disable_attack);
+        if (!(e.axe.angle & 0x3ff))
+        {
+            CHECK(ev.sound == 0x60c && ev.volume_sound && ev.volume == volume);
+            volume -= 8;
+            ++swishes;
+        }
+        else
+            CHECK(!ev.sound);
+        CHECK(e.axe.volume == volume && e.axe.palette == 0x1ab + ((tick >> 1) & 1U) &&
+              e.axe.pose_timer == (before.axe.pose_timer ? before.axe.pose_timer - 1 : 2));
+        const Sint16 left[4] = {0x560, 0x2a0, 0xaa0, 0xd60};
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            SotnMathTrig t = {0};
+            CHECK(SotnMath_Trig(executable, (Sint16)(left[v] + e.axe.angle), &t));
+            CHECK(e.axe.x[0][v] == Whole(e.x) - 30 + Floor(t.cosine * 336, 16) &&
+                  e.axe.y[0][v] == Whole(e.y) - 10 - Floor(t.sine * 336, 16));
+        }
+        for (Uint16 i = 0; i < 4; ++i)
+            if (e.axe.active[i] && !before.axe.active[i])
+                CHECK(!SDL_memcmp(e.axe.x[i + 1U], e.axe.x[0], sizeof(e.axe.x[0])) &&
+                      e.axe.tint[i] == 0 && ((e.axe.visible >> (i + 1U)) & 1U));
+            else if (before.axe.active[i] && before.axe.shade[i] >= 10)
+                CHECK(!e.axe.active[i] && !((e.axe.visible >> (i + 1U)) & 1U));
+            else if (before.axe.active[i])
+                CHECK(e.axe.tint[i] == before.axe.shade[i] &&
+                      !SDL_memcmp(e.axe.x[i + 1U], before.axe.x[i + 1U], sizeof(e.axe.x[0])));
+    }
+    CHECK(e.removed && swishes >= 4);
+    in.hit_flags = 0;
+    // The volume clamps at zero (seven minus eight); a right-facing axe spins forwards.
+    e = fresh;
+    e.step = 1;
+    e.axe.angle = 0x480;
+    e.axe.volume = 7;
+    e.facing_left = true;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && ev.volume == 7 && !e.axe.volume);
+    e.facing_left = false;
+    e.axe.angle = 0x100;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.axe.angle == 0x180);
+    // Retirement is strictly below screen line 0x100; hitFlags 3 is not a bounce.
+    e = fresh;
+    e.step = 1;
+    e.axe.velocity_y = -0x4400;
+    e.y = (10 + 0x101) * 65536;
+    in.hit_flags = 3;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    e = fresh;
+    e.step = 1;
+    e.axe.velocity_y = -0x4400;
+    e.y = (10 + 0x100) * 65536;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed && e.step == 1 &&
+          !ev.disable_attack);
+    // A negative odd speed halves towards zero.
+    e = fresh;
+    e.step = 1;
+    e.velocity_x = -0x20001;
+    in.hit_flags = 2;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.velocity_x == 0x10000);
+    // hitFlags 2: hitbox off, half speed back (truncated), lifted, spinning the other way.
+    e = fresh;
+    e.step = 1;
+    e.velocity_x = 0x20001;
+    e.axe.angle = 0x100;
+    in.hit_flags = 2;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 2 && ev.disable_attack &&
+          e.velocity_x == -0x10000 && e.axe.velocity_y == -0x30000);
+    in.hit_flags = 0;
+    const SotnSubweaponEntity bounced = e;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+          e.axe.angle == (Sint16)(bounced.axe.angle - 0xc0) &&
+          e.axe.velocity_y == -0x30000 + 0x2400 && e.x == bounced.x - 0x10000 && !ev.sound);
+    e.facing_left = true;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+          e.axe.angle == (Sint16)(bounced.axe.angle - 0xc0 + 0xc0));
+    e.axe.velocity_y = 0x80000;
+    e.y = (10 + 0x100 - 8) * 65536;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed &&
+          e.axe.velocity_y == 0x80000);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    e = (SotnSubweaponEntity){.id = SOTN_SUBWEAPON_AXE, .step = 3};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    return true;
+}
+// The axe through the shared runtime: blueprint9, five rows, its group, the volume swish and
+// FLAG_UNK_20000 room retention.
+static bool AxeRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    Uint8 *def = dra + 0x4a00 + SOTN_SUBWEAPON_AXE * 20U;
+    def[0] = 10;
+    def[2] = 4;
+    Put16(def + 4, 0x1040);
+    def[6] = 2;
+    def[7] = 32;
+    def[8] = 4;
+    def[10] = 0x5d;
+    def[11] = SOTN_AXE_BLUEPRINT;
+    def[12] = 2;
+    def[14] = 0x83;
+    const Uint8 blueprint[7] = {9, 10, 1, 0xc1, 0, 0x22, 0};
+    SDL_memcpy(dra + 0xd1d4 + blueprint[0] * 6U, blueprint + 1, 6);
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .camera_x = 20,
+        .camera_y = 30,
+        .player = {.hp = 70, .x = 60 * 65536, .y = 150 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 60 * 65536, .y = 150 * 65536, .priority = 148},
+              SOTN_AXE_BLUEPRINT, SOTN_SUBWEAPON_AXE << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *c = &r->children[16];
+    CHECK(c->subweapon && c->initialized && c->kind == SOTN_AXE_ENTITY && c->primitive_count == 5 &&
+          c->group == 7 && c->state.subweapon.attack.width == 12 && r->use_ticks == 4 &&
+          SotnBatRuntime_SubweaponValid(c, 16) &&
+          SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_AXE) == 1 &&
+          actors->primitives[c->primitives[4]].ability_kind == SOTN_AXE_ENTITY);
+    bool swished = false;
+    for (Uint16 tick = 0; tick < 10 && !swished; ++tick)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        swished = r->sound_count == 1 && r->sounds[0] == 0x60c && (r->sound_volume_mask & 1U) &&
+                  r->sound_volumes[0] == 0x7f;
+    }
+    CHECK(swished);
+    // Room entry keeps the axe (FLAG_UNK_20000) and its rows.
+    const Sint32 x = c->state.subweapon.motion.x;
+    in.entering = true;
+    in.room_shift_x = 64;
+    in.screen_shift_x = 64;
+    CHECK(SotnBatRuntime_PruneSubweapons(r) && c->kind == SOTN_AXE_ENTITY &&
+          SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          c->kind == SOTN_AXE_ENTITY && c->state.subweapon.motion.x == x + 64 * 65536 &&
+          SotnBatRuntime_SubweaponValid(c, 16));
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -1877,7 +2094,8 @@ int main(void)
         Runtime((SotnDataView){bytes, 0x23212}) && Beam((SotnDataView){bytes, 0x23212}) &&
         Sparks() && GiantCross((SotnDataView){bytes, 0x23212}) &&
         CrossRuntime((SotnDataView){bytes, 0x23212}) && Dagger((SotnDataView){bytes, 0x23212}) &&
-        DaggerRuntime((SotnDataView){bytes, 0x23212});
+        DaggerRuntime((SotnDataView){bytes, 0x23212}) && Axe((SotnDataView){bytes, 0x23212}) &&
+        AxeRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;
@@ -1891,6 +2109,8 @@ int main(void)
         "cross beam afterimage/birth/rise/factories/odd widening/clamped hold/spread/cull, giant "
         "cross rise/orbit/projected hitbox/priority/face order/NCLIP, particles' spark life, "
         "runtime six screen-anchored crosses/contiguous rows/chain/prune; dagger birth/flight/"
-        "wall and guard bounces/enemy hold/spin/fade, runtime rows/tink factory/prune");
+        "wall and guard bounces/enemy hold/spin/fade, runtime rows/tink factory/prune; axe "
+        "facing/lift/swish volume/gravity/retirement/bounce/afterimages, runtime rows/volume/"
+        "room retention");
     return 0;
 }
