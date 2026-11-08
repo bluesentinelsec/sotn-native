@@ -121,6 +121,7 @@ struct SotnLaboratory
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room, room_music_stopped;
+    bool stopwatch_cd_muted; /**< Original D_8006BB00; zero at Engine_Init (new session). */
     LaboratoryInput input;
     SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 2200];
     Uint16 frame[SOTN_FRAME_PIXELS];
@@ -504,8 +505,10 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     if (!QueueAudio(session, combat, player_sound, player_extra_sound, player_third_sound,
                     guard_sound))
         return false;
+    // Engine_3 skips the restart while the stopwatch (D_800973FC == 1) holds; the stopwatch's
+    // own release replays the music.
     if (session->fairy_cd && session->room_music_stopped && !session->save_room &&
-        !session->clock_room && !session->game_over)
+        !session->clock_room && !session->game_over && !session->bat_runtime.stopwatch)
     {
         SotnCdAudioState cd = {0};
         // Engine_3 repeats StopMusic until actual XA activity clears before
@@ -596,7 +599,8 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         Sint16 speech[SOTN_SOUND_FRAMES * 2] = {0};
         if (!SotnMusic_Tick(session->speech, speech, SDL_arraysize(speech)))
             return false;
-        for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+        // Speech is CD XA too: MuteCd silences it while it keeps playing.
+        for (Uint32 i = 0; i < SDL_arraysize(pcm) && !session->stopwatch_cd_muted; ++i)
             pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + speech[i], -32768, 32767);
     }
     if (session->master_gain != 127)
@@ -1120,6 +1124,43 @@ static bool StopwatchPaused(SotnLaboratory *s)
 {
     SotnActorControl control = {0};
     return s->actors && SotnActors_GetControl(s->actors, &control) && control.block_stopwatch;
+}
+// Engine_Normal's stopwatch CD mute (5087C.c), after the update reaches its room lookup.
+// D_8006BB00 records MuteCd while D_800973FC holds; when the freeze ends, UnMuteCd. If a save
+// room stopped the music (stopMusicFlag) and the stopwatch held Engine_3's restart, outside
+// save/loading rooms the stage music plays again; pauseEnemies discards that restart.
+static bool TickStopwatchCd(SotnLaboratory *s)
+{
+    if (!s->fairy_cd)
+        return true;
+    if (s->bat_runtime.stopwatch && !s->stopwatch_cd_muted)
+    {
+        if (!SotnCdAudio_SetMuted(s->fairy_cd, true))
+            return false;
+        s->stopwatch_cd_muted = true;
+        return true;
+    }
+    if (s->bat_runtime.stopwatch || !s->stopwatch_cd_muted)
+        return true;
+    if (!SotnCdAudio_SetMuted(s->fairy_cd, false))
+        return false;
+    s->stopwatch_cd_muted = false;
+    if (StopwatchPaused(s))
+        s->room_music_stopped = false;
+    else if (s->room_music_stopped && !(s->room.foreground.parameters & 0x60U))
+    {
+        Uint16 command = 0;
+        if (!StageMusicCommand(s, &command))
+            return false;
+        // PlaySfx(currentMusicId); a stage without music (zero) keeps stopMusicFlag.
+        if (command != 0x2ff)
+        {
+            if (!SotnCdAudio_Queue(s->fairy_cd, command))
+                return false;
+            s->room_music_stopped = false;
+        }
+    }
+    return true;
 }
 // func_8010EB5C for every subweapon on the shared runtime: func_800FE3C4's heart check,
 // CheckSubwpnChainLimit over slots32..47, heart spending, then the actual factory.
@@ -3615,6 +3656,9 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
     }
     if (!TickActors(session) || !TickCape(session) || !TickSaveRoom(session, buttons) ||
         !EnterSpellFreeze(session))
+        return false;
+    // The spell freeze's entry update returns before Engine_Normal's stopwatch CD check.
+    if (!session->spell_pause_pending && !TickStopwatchCd(session))
         return false;
     SotnActorCombat combat = {0};
     if (!SotnPlayer_GetState(session->player, &state) ||

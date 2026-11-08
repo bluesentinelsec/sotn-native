@@ -19,6 +19,7 @@ typedef struct SotnCdAudioState
     bool fade_acknowledged; /**< Original single fade flag, distinct from10/11 and queue empty. */
     bool xa_active; /**< Original xa_play_ck: pending fade or playing ID, never data readiness. */
     bool decoder_present;
+    bool muted; /**< Original g_MuteCd (MuteCd/UnMuteCd), cleared by MuteSound. */
     SotnMusicState decoder;
 } SotnCdAudioState;
 /** @brief Create the selected command owner and adopt existing native stage music on success.
@@ -55,6 +56,13 @@ bool SotnCdAudio_CheckSoundBinding(const SotnCdAudio *audio, const SotnSound *so
  * queues, abandoned bookmarks and SEQ attachment, resets master127/multiplier32, retaining
  * DSP/RAM, envelopes, copied scripts, original restore byte and retained XA configuration words. */
 bool SotnCdAudio_Mute(SotnCdAudio *audio);
+/** @brief Original MuteCd (true) / UnMuteCd (false): switch g_MuteCd without a tick.
+ * @param audio Actual owner. @param muted New flag.
+ * @return Success or SDL error without mutation. While set, each Tick still runs commands and
+ * advances the decoder (the CD keeps playing) but outputs its PCM at volume zero, as
+ * func_801361F8's SetCdVolume(0, 0, 0). Mute (MuteSound/InitSoundVars1) clears it. The
+ * original D_8013B694 counter has no reader and is not kept. */
+bool SotnCdAudio_SetMuted(SotnCdAudio *audio, bool muted);
 /** @brief Queue selected original SPU/CD commands or an original US XA ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.

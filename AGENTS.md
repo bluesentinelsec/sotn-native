@@ -120,7 +120,10 @@ KIND 0 (slots 32..63); FACTORY(4,14) particles are profile14 = behaviour12 strea
 lock. The freeze's first player update requests BP_120 (func_80123F78: rowless entity64 copying
 the player's frame through g_PlayerDraw[13], PAL_FILL_WHITE additive, 0x80->4 fade, ends with the
 freeze, normal animSet only, copied drawFlags); every frozen player update resets afterimages.
-Not yet: MuteCd,
+MuteCd: the first normal update with D_800973FC mutes the CD (SotnCdAudio_SetMuted: decoder keeps
+playing at volume zero; MuteSound clears it); its release unmutes and, if a save room's
+stopMusicFlag was held (Engine_3 skips the restart while the stopwatch holds), replays the stage
+music outside save/loading rooms (pauseEnemies discards it). Not yet:
 func_800F27F4 (Faerie/Sprite speech gate only). Every
 subweapon now runs on the shared runtime; the legacy service is removed (subweapon.c keeps the
 definition read, Heart broach cost and func_800FE3C4 power).
