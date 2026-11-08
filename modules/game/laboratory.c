@@ -4014,7 +4014,9 @@ static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p);
 static bool DrawStopwatchTint(SotnLaboratory *s, const SotnSubweaponEntity *m, Sint32 view_x,
                               Sint32 view_y)
 {
-    if (!(m->tint.sprite & 0x7fffU))
+    // The copied player draw flags meet the tint's zero scaleX/scaleY: with Secret boots' scale
+    // flag the quad collapses, so nothing is drawn. Rotation by zero changes nothing.
+    if (!(m->tint.sprite & 0x7fffU) || (m->tint.draw_flags & 3U))
         return true;
     SotnAlucardSprite image = {0};
     SotnPlayerEffectQuad q = {0};
@@ -4275,6 +4277,10 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
             q.u[v] = (Uint8)((v & 1U) ? 4 + sprite->width : 4);
         }
     }
+    // func_800EB758 scales (Secret boots) before it rotates, about the retained rotPivotY.
+    if (player.scaled_y &&
+        !SotnPlayerEffect_ScaleY(BlinkWord(y + player.draw_pivot_y), player.scale_y, &q))
+        return false;
     if (player.water_death.active)
     {
         const SotnWaterDeath d = player.water_death.motion;
@@ -5324,7 +5330,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      : ((player.animation.sprite & 0x8000U) || player.stone.active ||
                                 player.death.native || player.water_death.active ||
                                 player.fairy_rescue.blend || player.animation_bank == 13 ||
-                                player.rotated ||
+                                player.rotated || player.scaled_y ||
                                 (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                                  (player.palette != 0x8100 || player.body_color_blend))
                             ? DrawRotatedPlayer(session, player, &alucard,

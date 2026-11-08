@@ -2637,6 +2637,7 @@ static bool StopwatchTint(void)
     SotnSubweaponInput in = {.stopwatch = true,
                              .player_normal_set = true,
                              .player_sprite = 0x8023,
+                             .player_draw_flags = 2,
                              .player_priority = 148,
                              .player_facing_left = true};
     SotnSubweaponEntity e = {.x = 7 * 65536, .y = 9 * 65536, .id = SOTN_STOPWATCH_TINT};
@@ -2645,9 +2646,10 @@ static bool StopwatchTint(void)
     CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed && e.step == 1 &&
           e.flags == 0x0c030000U && e.tint.sprite == 0x8023 && e.priority == 146 && e.facing_left &&
           e.tint.grey == 0x80 && e.tint.color_enabled && random == 0x77 && !ev.sound &&
-          !ev.factories && e.x == 7 * 65536);
-    // The frame stays the birth frame.
+          !ev.factories && e.x == 7 * 65536 && e.tint.draw_flags == 2);
+    // The frame and copied draw flags stay the birth ones.
     in.player_sprite = 0x44;
+    in.player_draw_flags = 4;
     in.player_facing_left = false;
     Uint16 updates = 0;
     while (!e.removed)
@@ -2656,7 +2658,7 @@ static bool StopwatchTint(void)
         ++updates;
         if (!e.removed)
             CHECK(e.tint.grey == 0x80 - updates && e.tint.sprite == 0x8023 && e.facing_left &&
-                  e.tint.color_enabled);
+                  e.tint.color_enabled && e.tint.draw_flags == 2);
     }
     CHECK(updates == 125 && !e.tint.color_enabled && random == 0x77);
     // Another animSet (Bat/Wolf/Axe Armor) retires the birth after its flags.

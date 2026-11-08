@@ -318,6 +318,7 @@ typedef struct SotnStopwatchTint
 {
     Uint16 sprite;      /**< PLAYER.animCurFrame at birth (the entity never animates). */
     Uint8 grey;         /**< g_PlayerDraw[13] r0..b3 (all equal). */
+    Uint8 draw_flags;   /**< PLAYER.drawFlags at birth; a scale flag (zero scale) hides it. */
     bool color_enabled; /**< g_PlayerDraw[13].enableColorBlend. */
 } SotnStopwatchTint;
 
@@ -389,6 +390,7 @@ typedef struct SotnSubweaponInput
     bool stopwatch;            /**< g_unkGraphicsStruct.D_800973FC as it stands in the pass. */
     bool player_normal_set;    /**< PLAYER.animSet == 1 (not Bat13/Wolf15/Axe Armor's overlay). */
     Uint16 player_sprite;      /**< PLAYER.animCurFrame (frame-load bit included). */
+    Uint8 player_draw_flags;   /**< PLAYER.drawFlags (2 Secret boots' scaleY, 4 rotation). */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */

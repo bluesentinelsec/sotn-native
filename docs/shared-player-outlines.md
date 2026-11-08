@@ -28,9 +28,9 @@ Selected original drawing pivots now remain in player state: Gravity Boots ceili
 crunch retains (0,2), active Bat clears Y after its original return gate, stone
 wiggles retain their selected pivot through recovery, and physical death clears
 both. Room rebases never reset them. Normal outline births capture those values.
-The current owner supplies the supported unit body scale and normal palette;
-Secret Boots scaling, hidden Hellfire presentation and other unintegrated body
-transform producers still need their actual contexts before those features run.
+The current owner supplies the normal palette and the player's retained scaleY,
+including [Secret boots](player-secret-boots.md)' 0x110; hidden Hellfire presentation
+and other unintegrated body transform producers still need their actual contexts.
 The [outline component](player-outline.md) retains its broader supplied-context
 SDK comparisons; they do not prove those missing native producers.
 

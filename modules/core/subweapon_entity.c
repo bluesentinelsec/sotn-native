@@ -1883,6 +1883,7 @@ static void StopwatchTint(SotnSubweaponEntity *e, SotnSubweaponInput in)
             return;
         }
         t->sprite = in.player_sprite;
+        t->draw_flags = in.player_draw_flags;
         e->priority = (Uint16)(in.player_priority - 2U);
         e->facing_left = in.player_facing_left;
         t->grey = 0x80;

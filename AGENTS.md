@@ -119,10 +119,18 @@ moves the entity only while FLAG_POS_PLAYER_LOCKED (DRAW_UNK02 beats DRAW_UNK_20
 KIND 0 (slots 32..63); FACTORY(4,14) particles are profile14 = behaviour12 streaks with camera
 lock. The freeze's first player update requests BP_120 (func_80123F78: rowless entity64 copying
 the player's frame through g_PlayerDraw[13], PAL_FILL_WHITE additive, 0x80->4 fade, ends with the
-freeze, normal animSet only); every frozen player update resets afterimages. Not yet: MuteCd,
+freeze, normal animSet only, copied drawFlags); every frozen player update resets afterimages.
+Not yet: MuteCd,
 func_800F27F4 (Faerie/Sprite speech gate only). Every
 subweapon now runs on the shared runtime; the legacy service is removed (subweapon.c keeps the
 definition read, Heart broach cost and func_800FE3C4 power).
+
+Selected [Secret boots](docs/player-secret-boots.md) (accessory88): before afterimage sampling, a
+living, untransformed, unrotated, unstuck, non-Axe player sets ENTITY_SCALEY with scaleY 0x110 and
+rotPivotY 0x18 (flag reset each update; scale/pivot retained until AluInit). func_800EB758 scales
+(rows 0/1 from y0, 2/3 from y2, floored) before rotating: body, BlinkWhite, hand programs
+(PlayerDrawFlags + scale_y, their SCALEY offsets), outlines (retained scaleY) and the stopwatch
+tint (copied flags, zero scale: draws nothing). Afterimages/hitboxes unchanged.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default

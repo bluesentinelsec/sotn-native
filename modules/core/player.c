@@ -3046,6 +3046,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
+    next.scaled_y = false; // PLAYER.drawFlags = ENTITY_DEFAULT
     next.sleep_event = false;
     next.movement_effects = (SotnPlayerMovementEffects){0};
     if (alive && !teleporting && !SotnPlayer_TimersTick(&next))
@@ -3301,6 +3302,16 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return false;
     if (next.death.native && next.animation.remaining < 0)
         next.animation.sprite |= 0x8000U;
+    // 692E8.c: Secret boots88 in either accessory slot stretch an untransformed, living body that
+    // is not rotated to scaleY 0x110 about rotPivotY 0x18. Both words stay for later copies.
+    const Uint32 boots_status = SotnPlayer_Status(&next);
+    if (!(boots_status & 0x50U) && next.secret_boots && !(boots_status & 0x1050017U) &&
+        !next.form_rotated && !next.scaled_y)
+    {
+        next.scaled_y = true;
+        next.scale_y = 0x110;
+        next.draw_pivot_y = 0x18;
+    }
     if (!SotnPlayer_AfterimageCapture(&next))
         return false;
     const bool water_drag = SotnPlayer_WaterDrag(&next);
@@ -3375,6 +3386,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
         return false;
     player->dra = dra;
     (void)SotnPlayerAfterimage_Init(&player->afterimage);
+    player->scale_y = 0x100; // AluInit
     player->hp = player->hp_max = 70;
     player->mp = 20;
     player->mist_lockout = 16;
@@ -3957,7 +3969,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated,
         .draw_pivot_x = player->draw_pivot_x,
-        .draw_pivot_y = player->draw_pivot_y};
+        .draw_pivot_y = player->draw_pivot_y,
+        .scale_y = player->scale_y,
+        .scaled_y = player->scaled_y};
     SDL_memcpy(out->player_timers, player->timers, sizeof(out->player_timers));
     out->smoke_environment =
         (SotnPlayerSmokeEnvironment){.x = player->x.value,
@@ -4262,6 +4276,7 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
     player->armor = state->equipment[3];
     player->cape = state->equipment[4];
     player->talismans = (Uint16)((state->equipment[5] == 83) + (state->equipment[6] == 83));
+    player->secret_boots = (Uint16)((state->equipment[5] == 88) + (state->equipment[6] == 88));
     player->hearts = state->hearts;
     player->hearts_max = state->hearts_max;
     return true;

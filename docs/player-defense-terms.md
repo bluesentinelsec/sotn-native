@@ -47,8 +47,9 @@ which BO6 reads during the Richter fight, a stage not yet integrated. In the nat
 therefore change stats and elements only. Mirror cuirass's stone immunity takes the same US
 prepass as the Medusa shield.
 
-The other unsupported body items have special behavior (cape palettes, item drops, enemy HP
-display, sprite scale and the like) and stay unsupported until their owners exist.
+The other unsupported body items have special behavior (item drops and the like) and stay
+unsupported until their owners exist. [Secret boots](player-secret-boots.md) now have their
+sprite-scale owner.
 
 ## Evidence
 

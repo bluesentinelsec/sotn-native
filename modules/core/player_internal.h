@@ -67,6 +67,11 @@ struct SotnPlayer
     Sint32 vx, vy, contact, previous_contact;
     Uint32 frame_contacts, timer_status;
     Sint16 draw_pivot_x, draw_pivot_y;
+    /** PLAYER.scaleY (AluInit 0x100, retained once Secret boots set 0x110) and this update's
+     * ENTITY_SCALEY draw flag; secret_boots counts accessory88 copies. */
+    Sint16 scale_y;
+    bool scaled_y;
+    Uint16 secret_boots;
     Uint32 status, frame_number, movement_flags;
     SotnPlayerAfterimage afterimage;
     SotnPlayerMovementEffects movement_effects;
