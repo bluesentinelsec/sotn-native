@@ -6,7 +6,6 @@
 #include "player_internal.h"
 #include <sotn/combat.h>
 #include <sotn/hellfire_cast.h>
-#include <sotn/subweapon.h>
 
 enum
 {
@@ -647,7 +646,7 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (pressed == 0)
         return false;
-    if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) &&
+    if (player->subweapon_use != NULL && (player->buttons & SOTN_BUTTON_UP) &&
         (player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND)) &&
         player->subweapon_ticks == 0)
     {
@@ -655,14 +654,12 @@ static bool StartAttack(SotnPlayer *player)
         Uint16 animation = 0;
         SotnPlayerState state = {0};
         if (!SotnPlayer_GetState(player, &state) ||
-            (player->subweapon_use &&
-             !player->subweapon_use(player->subweapon_context,
-                                    (SotnPlayerFactorySource){.x = player->x.value,
-                                                              .y = player->y.value,
-                                                              .priority = state.priority,
-                                                              .facing_left = player->facing_left},
-                                    &handled, &used, &animation)) ||
-            (!handled && !SotnSubweapons_Use(player->subweapons, state, &used, &animation)))
+            !player->subweapon_use(player->subweapon_context,
+                                   (SotnPlayerFactorySource){.x = player->x.value,
+                                                             .y = player->y.value,
+                                                             .priority = state.priority,
+                                                             .facing_left = player->facing_left},
+                                   &handled, &used, &animation))
         {
             player->failed = true;
             return true;
@@ -4257,14 +4254,6 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
 void SotnPlayer_Close(SotnPlayer *player)
 {
     SDL_free(player);
-}
-
-bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service)
-{
-    if (player == NULL)
-        return SDL_InvalidParamError("player");
-    player->subweapons = service;
-    return true;
 }
 
 bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context)

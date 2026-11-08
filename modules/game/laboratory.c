@@ -33,7 +33,7 @@
 #include <sotn/stage_assets.h>
 #include <sotn/stage_profile.h>
 #include <sotn/stage_route.h>
-#include <sotn/subweapon_renderer.h>
+#include <sotn/subweapon.h>
 #include <sotn/wolf_capture.h>
 
 struct SotnLaboratory
@@ -97,7 +97,6 @@ struct SotnLaboratory
     Uint16 mist_capture_sprite, mist_capture_bank;
     bool mist_present;
     SotnActors *actors;
-    SotnSubweapons *subweapons;
     SotnActorLayout *actor_layout;
     SotnActorGraphics *actor_graphics;
     SotnPresenter *presenter;
@@ -496,16 +495,6 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         return false;
     if (player_third_sound != 0 && !QueueNativeSound(session, player_third_sound))
         return false;
-    Uint16 sounds[64] = {0}, sound_count = 0;
-    if (session->subweapons != NULL)
-    {
-        if (!SotnSubweapons_Sounds(session->subweapons, sounds, SDL_arraysize(sounds),
-                                   &sound_count))
-            return false;
-        for (Uint16 i = 0; i < sound_count; ++i)
-            if (!QueueNativeSound(session, sounds[i]))
-                return false;
-    }
     return true;
 }
 
@@ -713,8 +702,7 @@ static bool EnterActors(SotnLaboratory *session)
     SotnActorLayout_Close(session->actor_layout);
     session->actor_layout = layout;
     if (!SotnActors_GetMap(session->actors, &session->room.foreground.collision) ||
-        !SotnPlayer_ChangeRoom(session->player, session->room.foreground.collision, 0, 0) ||
-        !SotnSubweapons_Enter(session->subweapons, session->room.foreground.collision))
+        !SotnPlayer_ChangeRoom(session->player, session->room.foreground.collision, 0, 0))
         return false;
     return true;
 }
@@ -1133,10 +1121,8 @@ static bool StopwatchPaused(SotnLaboratory *s)
     SotnActorControl control = {0};
     return s->actors && SotnActors_GetControl(s->actors, &control) && control.block_stopwatch;
 }
-// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, holy water, stopwatch,
-// Rebound Stone, Vibhuti, Agunea, Bible, Cross):
-// func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
-// actual factory.
+// func_8010EB5C for every subweapon on the shared runtime: func_800FE3C4's heart check,
+// CheckSubwpnChainLimit over slots32..47, heart spending, then the actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
                          Uint16 *animation)
 {
@@ -2326,8 +2312,7 @@ static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
             return false;
         if (e->clear_shared)
         {
-            if (!SotnActors_ClearPlayerRuntime(s->actors, &s->bat_runtime) ||
-                !SotnSubweapons_ClearPlayerEntities(s->subweapons))
+            if (!SotnActors_ClearPlayerRuntime(s->actors, &s->bat_runtime))
                 return false;
             s->mist_present = false;
             s->mist_generation = 0;
@@ -2560,13 +2545,12 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
-    // Initializing a newly entered room must not advance projectiles or replay the
-    // hand-attack sound already consumed by the departing room in this frame.
+    // Initializing a newly entered room must not replay the hand-attack sound already consumed by
+    // the departing room in this frame.
     if (entering)
         player.attack.sound = false;
     if (!BindActorAudio(session) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
-        (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
     if (!SotnActors_GetDialogue(session->actors, &session->dialogue))
@@ -2885,8 +2869,6 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             return false;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
             return false;
-        if (!SotnSubweapons_Enter(session->subweapons, room.foreground.collision))
-            return false;
         session->mist_rebase_x += offset_x;
         session->mist_rebase_y += offset_y;
         session->blink_rebase_x += offset_x;
@@ -3101,9 +3083,6 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnPlayer_SetHandContext(session->player, HandFactory, ThrowingRandom, session) ||
         !SotnPlayer_SetScriptContext(session->player, session->executable) ||
         !SotnPlayer_SetStageContext(session->player, stage_id) ||
-        !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
-                               &session->subweapons) ||
-        !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
         !SotnPlayer_SetSubweaponContext(session->player, SubweaponUse, session) ||
         (start.arrival != NULL &&
          !SotnPlayer_SetArrivalFacing(session->player, (start.arrival->x & 255) >= 128)) ||
@@ -3113,7 +3092,6 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnActors_SetCamera(session->actors, &session->camera) ||
         !SotnActors_SetWorld(session->actors, &session->world) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
-        !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
         !SotnActors_SetGasCloud(session->actors, &session->gas_cloud) ||
         !SotnActors_SetBatRuntime(session->actors, &session->bat_runtime) ||
         !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
@@ -3352,7 +3330,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
             !SotnActorGraphics_TickMistPalette(s->actor_graphics) ||
             !SotnCameraShake_Tick(&s->shake, s->dra))
             return false;
-        // Mist/Gas and the selected subweapons have no initialized flag10000 update.
+        // Mist/Gas have no initialized flag10000 update.
         // Their controllers and pending contacts remain held, not reset or consumed.
     }
     if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0, 0, 0))
@@ -3541,8 +3519,7 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
                                                                                   : 0}))
         return false;
     session->stage_script_mode = script_mode;
-    if (!SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
-        !SotnPlayer_SetMistContext(
+    if (!SotnPlayer_SetMistContext(
             session->player, session->mist_present ? &session->mist_effect : NULL,
             session->mist_generation, session->game_timer, water.waist != 0) ||
         !SotnPlayer_SetBatRuntimeContext(session->player, bat_effect, bat_factory,
@@ -7107,9 +7084,6 @@ static bool DrawGameplay(SotnLaboratory *session)
                                              session->shake.x, session->shake.y, session->frame,
                                              SOTN_FRAME_PIXELS)) &&
            DrawActorsAndPlayer(session, state, camera_x, camera_y, false) &&
-           SotnSubweapons_Draw(session->subweapons, session->actor_graphics, session->dra,
-                               session->game_timer, view_x, view_y, session->frame,
-                               SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
             SotnSavePointRenderer_DrawOffset(session->save_renderer, session->save_point, true,
                                              session->shake.x, session->shake.y, session->frame,
@@ -7291,7 +7265,6 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnPresenter_Destroy(session->presenter);
         LaboratoryInput_Quit(&session->input);
         SotnActors_Destroy(session->actors);
-        SotnSubweapons_Destroy(session->subweapons);
         SotnCharacter_Destroy(session->character);
         SotnActorLayout_Close(session->actor_layout);
         SotnActorGraphics_Destroy(session->actor_graphics);

@@ -58,7 +58,7 @@ slot-fifteen UI and fresh byte-identical version-nine load, retaining Bat and a
 found-but-disabled Fire relic
 while retiring transient owners. Existing user saves remain untouched.
 
-Global factory/primitive/attack-group contention with legacy subweapons and other
+Global factory/primitive/attack-group contention with other
 abilities, afterimages, complete effects/audio, water-volume coverage and full
 raster/timing/route parity remain incomplete. Selected ability integration does
 not make Bat, Alucard, the castle or the game complete.

@@ -702,8 +702,6 @@ bool SotnPlayer_CommitDissolveFrame(SotnPlayer *player, bool frame_load);
  * this is a no-tick transaction operation, never ordinary save/Continue restoration. */
 bool SotnPlayer_RollbackDissolve(SotnPlayer *player, const SotnPlayerState *before);
 
-typedef struct SotnSubweapons SotnSubweapons;
-
 /** @brief Bind the actual Wolf body/effect/factory context before the next player tick.
  * @param player Actual player. @param body Borrowed stage-owned body.
  * @param effect Actual current transformation child or NULL. @param pending Actual factory or NULL.
@@ -790,19 +788,15 @@ bool SotnPlayer_StageAlignY(SotnPlayer *player, Sint32 y);
  * its release motion and clear the handshake when it stops holding the player. */
 bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
 
-/** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
- * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.
- */
-bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
 /** @brief func_8010EB5C for subweapons owned by the shared player runtime: definition, hearts,
  * CheckSubwpnChainLimit, heart spending and CreateEntFactoryFromEntity.
- * @param context Owner. @param source Player at use. @param handled Receives false when the
- * equipped subweapon still belongs to the legacy service. @param used Receives success; false
- * permits the ordinary hand attack. @param animation Receives the definition's standing anim.
+ * @param context Owner. @param source Player at use. @param handled Receives false when no
+ * subweapon is equipped (or it is unsupported); then nothing is used. @param used Receives success;
+ * false permits the ordinary hand attack. @param animation Receives the definition's standing anim.
  * @return Success or SDL error; the owner restores hearts/factories if the player update fails. */
 typedef bool (*SotnPlayerSubweaponUse)(void *context, SotnPlayerFactorySource source, bool *handled,
                                        bool *used, Uint16 *animation);
-/** @brief Bind the shared-runtime subweapon owner; NULL keeps only the legacy service.
+/** @brief Bind the shared-runtime subweapon owner; NULL disables subweapon use.
  * A handled use also takes func_8010EA54(8)'s grunt roll through the bound throwing random. */
 bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context);
 

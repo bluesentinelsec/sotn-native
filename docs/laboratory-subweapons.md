@@ -18,8 +18,9 @@ Insufficient hearts or a full chain permits the original ordinary hand-attack fa
 broach discounts apply in either accessory slot, with a minimum cost of one heart. Subweapon kills
 use the same damage, enemy death and experience path as hand attacks.
 
-The earlier bounded subweapon service (sixteen projectile slots) is no longer reached from
-gameplay; it remains only until its removal. Saved character progress includes hearts and the
+The earlier bounded subweapon service (sixteen projectile slots, its renderer and its actor
+attack channels) has been removed; `subweapon.c` keeps only the definition read, the Heart broach
+cost and `func_800FE3C4`'s attack roll. Saved character progress includes hearts and the
 selected subweapon, not live subweapon entities.
 
 This is a selected checkpoint, not complete subweapon parity. Item crashes, the stopwatch's

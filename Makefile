@@ -112,8 +112,6 @@ SOTN_FORMAT_SOURCES += tests/core/test_progression.c
 
 SOTN_FORMAT_SOURCES += modules/core/subweapon.c modules/core/include/sotn/subweapon.h
 
-SOTN_FORMAT_SOURCES += modules/render/subweapon.c modules/render/include/sotn/subweapon_renderer.h
-
 SOTN_FORMAT_SOURCES += tests/core/test_subweapon.c
 
 SOTN_FORMAT_SOURCES += modules/core/actors_internal.h modules/core/actor_doors.c \

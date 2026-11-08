@@ -12,7 +12,6 @@
 #include <sotn/shop.h>
 #include <sotn/soul_orb.h>
 #include <sotn/stage_profile.h>
-#include <sotn/subweapon.h>
 #include <sotn/water_actor.h>
 #include <sotn/water_drops.h>
 #include <sotn/water_effect.h>
@@ -25,8 +24,8 @@ enum
     ACTOR_SPRITE_PART_LIMIT = 32,
     ACTOR_FOREIGN_ATTACK_GROUPS = 4,
     ACTOR_CHAPEL_BALL_LINKS = 15,
-    ACTOR_HAND_PROJECTILE_CHANNELS = 2 + SOTN_SUBWEAPON_SLOTS,
-    ACTOR_KICK_CHANNEL = ACTOR_HAND_PROJECTILE_CHANNELS + ACTOR_FOREIGN_ATTACK_GROUPS,
+    ACTOR_HAND_CHANNELS = 2, /**< Both hands; subweapons attack through the shared runtime. */
+    ACTOR_KICK_CHANNEL = ACTOR_HAND_CHANNELS + ACTOR_FOREIGN_ATTACK_GROUPS,
     ACTOR_GAS_CHANNEL,
     ACTOR_WING_CHANNEL,
     ACTOR_ZERO_CHANNEL = ACTOR_WING_CHANNEL + 8,
@@ -112,7 +111,6 @@ typedef struct Actor
     Uint8 parallax, cooldown[ACTOR_ATTACK_CHANNELS], damage_effect, palette_effect;
     Uint16 hit_palette;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
-    Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
     Uint16 collectible;
@@ -554,7 +552,6 @@ struct SotnActors
     bool library_arena_active, library_camera_unlocked;
     Uint16 backdrop_color;
     SotnCharacter *character;
-    SotnSubweapons *subweapons;
     const SotnGasCloud *gas_cloud;
     SotnBatRuntime *bat_runtime;
 };

@@ -168,29 +168,29 @@ static bool Damage(Fixture *f)
                                 .hitbox_height = 16}};
     SotnPlayerState player = {.x = 400 * 65536, .y = 144 * 65536, .invulnerable = true};
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 64 &&
-          target->cooldown[18] == 16 && target->stun == 3);
+          target->cooldown[ACTOR_HAND_CHANNELS] == 16 && target->stun == 3);
     target->stun = 200;
     for (Uint16 i = 0; i < 15; ++i)
         CHECK(SotnActors_Tick(s, player, 0, 0));
-    CHECK(target->state.hit_points == 64 && target->cooldown[18] == 1);
+    CHECK(target->state.hit_points == 64 && target->cooldown[ACTOR_HAND_CHANNELS] == 1);
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 38 &&
-          target->cooldown[18] == 16);
+          target->cooldown[ACTOR_HAND_CHANNELS] == 16);
     target->stun = 200;
     ball->state.generation = 100;
     CHECK(Ball(s, 17, 3) && Release(s, 17));
     s->slots[17].stun = 200;
     s->slots[17].state.flags = 0;
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 38 &&
-          target->cooldown[18] == 15); // Reused group does not reset original invulnerability.
+          target->cooldown[ACTOR_HAND_CHANNELS] == 15); // Reused group does not reset original invulnerability.
     target->enemy.immunes = 0x8000;
-    target->cooldown[18] = 0;
+    target->cooldown[ACTOR_HAND_CHANNELS] = 0;
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 38);
     target->enemy.immunes = 0;
     target->enemy.absorbs = 0x8000;
-    target->cooldown[18] = 0;
+    target->cooldown[ACTOR_HAND_CHANNELS] = 0;
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 67);
     target->enemy.absorbs = 0;
-    target->cooldown[18] = 16;
+    target->cooldown[ACTOR_HAND_CHANNELS] = 16;
     player.x = 119 * 65536;
     player.y = 123 * 65536;
     player.kick = (SotnPlayerKick){.generation = 1,
@@ -205,12 +205,12 @@ static bool Damage(Fixture *f)
                                               .invincibility_frames = 8,
                                               .active = true}};
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 64 &&
-          target->cooldown[18] == 15 && target->cooldown[ACTOR_KICK_CHANNEL] == 8);
+          target->cooldown[ACTOR_HAND_CHANNELS] == 15 && target->cooldown[ACTOR_KICK_CHANNEL] == 8);
     SotnActorCombat combat = {0};
     CHECK(SotnActors_GetCombat(s, &combat) && combat.kick_generation == 1 && combat.kick_hit == 1);
     player.kick = (SotnPlayerKick){0};
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 64 &&
-          target->cooldown[18] == 14 && target->cooldown[ACTOR_KICK_CHANNEL] == 7);
+          target->cooldown[ACTOR_HAND_CHANNELS] == 14 && target->cooldown[ACTOR_KICK_CHANNEL] == 7);
     CHECK(SotnActors_Enter(s, f->layout, s->map, 0, 0) && !s->chapel_ball[0].generation);
     Close(f, s);
     return true;

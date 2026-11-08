@@ -9,7 +9,6 @@
 #include <sotn/actors.h>
 #include <sotn/combat.h>
 #include <sotn/stage_freeze.h>
-#include <sotn/subweapon.h>
 
 bool ActorReplaceExplosion(SotnActors *s, Actor *a, Uint16 kind)
 {
@@ -622,7 +621,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Sint32 screen_x = target.x - actors->camera_x, screen_y = target.y - actors->camera_y;
     if (screen_x <= -32 || screen_x >= 288 || screen_y <= -32 || screen_y >= 256)
         return true;
-    const Uint32 normal_channels = ACTOR_HAND_PROJECTILE_CHANNELS;
+    const Uint32 normal_channels = ACTOR_HAND_CHANNELS;
     const Uint32 gas_start =
         normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
     const Uint32 wing_start = gas_start + SOTN_GAS_CLOUD_SLOTS;
@@ -825,31 +824,12 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 continue;
             hand = normal_channels + group;
         }
-        else if (channel < 2)
+        else
         {
             if (player.shield.equipment != 0 && channel == (player.shield.right_hand ? 1U : 0U))
                 source.attack = player.shield;
             else if (channel != (player.attack.right_hand ? 1U : 0U))
                 continue;
-        }
-        else
-        {
-            if (actors->subweapons == NULL)
-                continue;
-            SotnSubweaponState projectile = {0};
-            if (!SotnSubweapons_Get(actors->subweapons, channel - 2, &projectile))
-                return false;
-            if (actor->projectile_generation[channel - 2] != projectile.generation)
-            {
-                actor->projectile_generation[channel - 2] = projectile.generation;
-                actor->cooldown[channel] = 0;
-            }
-            if (projectile.generation == 0)
-                continue;
-            source.x = projectile.x;
-            source.y = projectile.y;
-            source.facing_left = projectile.facing_left;
-            source.attack = projectile.attack;
         }
         const SotnCombatBox attacker = PlayerBox(source, true);
         if (source.attack.active && actor->cooldown[hand] == 0 &&
@@ -952,19 +932,14 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 recipient->hit_params = actor->hit_params;
             if (!AttackerFeedback(actors, channel, wing_start, actor, recipient))
                 return false;
-            if (channel >= 2 && channel <= normal_channels)
+            if (kick)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                 if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
                     (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
                     flags = 2;
-                if (kick)
-                {
-                    actors->combat.kick_generation = player.kick.generation;
-                    actors->combat.kick_hit = flags;
-                }
-                else if (!SotnSubweapons_Hit(actors->subweapons, channel - 2, flags))
-                    return false;
+                actors->combat.kick_generation = player.kick.generation;
+                actors->combat.kick_hit = flags;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
             if (EnemyHitbox(actors, actor->state.id) && damage != 0xc000 &&
@@ -2421,14 +2396,6 @@ bool SotnActors_SetBatRuntime(SotnActors *actors, SotnBatRuntime *runtime)
     if (!actors)
         return SDL_InvalidParamError("actors");
     actors->bat_runtime = runtime;
-    return true;
-}
-
-bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service)
-{
-    if (actors == NULL)
-        return SDL_InvalidParamError("actors");
-    actors->subweapons = service;
     return true;
 }
 
