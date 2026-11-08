@@ -1,6 +1,4 @@
-#include "character_fixture.h"
 #include "player_internal.h"
-#include <sotn/subweapon.h>
 
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -285,43 +283,68 @@ static bool BatCollisionPasses(Fixture *f)
     return true;
 }
 
+// A stand-in for the shared-runtime func_8010EB5C owner: three hearts per use.
+typedef struct SubweaponOwner
+{
+    Uint16 hearts, uses, randoms;
+} SubweaponOwner;
+static bool OwnerUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
+                     Uint16 *animation)
+{
+    SubweaponOwner *o = context;
+    (void)source;
+    *handled = true;
+    *used = o->hearts >= 3;
+    if (*used)
+    {
+        o->hearts = (Uint16)(o->hearts - 3U);
+        ++o->uses;
+    }
+    *animation = 0x5d;
+    return true;
+}
+static bool OwnerFactory(void *context, SotnPlayerFactorySource source, Uint32 packed, Uint16 item,
+                         bool *allocated)
+{
+    (void)context;
+    (void)source;
+    (void)packed;
+    (void)item;
+    (void)allocated;
+    return SDL_SetError("The subweapon fixture creates no hand factory");
+}
+static bool OwnerConsume(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    (void)context;
+    (void)hand;
+    (void)item;
+    (void)equipped;
+    return SDL_SetError("The subweapon fixture consumes nothing");
+}
+static bool OwnerRandom(void *context, Uint16 *value)
+{
+    SubweaponOwner *o = context;
+    ++o->randoms;
+    *value = 7; // No casting grunt.
+    return true;
+}
+
 static bool HeldShieldSubweapon(Fixture *f)
 {
     CHECK(Create(f) && WeaponFixture(f, 52));
-    Uint8 *bytes = SDL_calloc(1, 0x11000);
-    CHECK(bytes);
-    TestCharacter_Fill(bytes);
-    TestCharacter_Progression(bytes);
-    // An authored dagger definition with a real cost and projectile owner.
-    Uint8 *definition = bytes + 0x4a00 + 20;
-    definition[0] = 7;
-    definition[2] = 3;
-    definition[6] = 2;
-    definition[7] = 4;
-    definition[8] = 5;
-    definition[10] = 0x5d;
-    SotnCharacter *character = NULL;
-    SotnSubweapons *subweapons = NULL;
-    SotnCharacterState state = {0};
-    CHECK(SotnCharacter_Create((SotnDataView){bytes, 0x11000}, &character));
-    CHECK(SotnCharacter_Get(character, &state, NULL));
-    state.subweapon = 1;
-    state.hearts = 20;
-    CHECK(SotnCharacter_Restore(character, &state));
-    CHECK(SotnSubweapons_Create((SotnDataView){bytes, 0x11000}, character, f->map, &subweapons));
-    CHECK(SotnPlayer_SetSubweapons(f->p, subweapons));
+    SubweaponOwner owner = {.hearts = 20};
+    CHECK(SotnPlayer_SetSubweaponContext(f->p, OwnerUse, &owner) &&
+          SotnPlayer_SetThrowingContext(f->p, OwnerFactory, OwnerConsume, OwnerRandom, &owner, 0,
+                                        0));
+    // A held shield button is no subweapon tap; releasing and tapping it again uses one.
     f->p->previous_buttons = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND;
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
-    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 20 &&
-          !f->p->subweapon_ticks && f->p->shield_cursor.phase == 1);
+    CHECK(owner.hearts == 20 && !owner.uses && !f->p->subweapon_ticks &&
+          f->p->shield_cursor.phase == 1);
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP));
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
-    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 17 &&
-          f->p->subweapon_ticks == 4);
-    CHECK(SotnPlayer_SetSubweapons(f->p, NULL));
-    SotnSubweapons_Destroy(subweapons);
-    SotnCharacter_Destroy(character);
-    SDL_free(bytes);
+    CHECK(owner.hearts == 17 && owner.uses == 1 && owner.randoms == 1 &&
+          f->p->subweapon_ticks == 4 && !f->p->throwing_grunt);
     return true;
 }
 

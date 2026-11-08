@@ -413,9 +413,6 @@ bool SotnActors_SpiritTargets(const SotnActors *actors, SotnSpiritTargetSnapshot
  * feedback; alive until replaced/destruction.
  * @return Success or SDL error. NULL disables this source; group cooldowns survive replacement. */
 bool SotnActors_SetBatRuntime(SotnActors *actors, SotnBatRuntime *runtime);
-/** @brief Bind a borrowed projectile service, alive through actor destruction; NULL disables it.
- * @param actors Borrowed actors. @param service Borrowed service. @return Success or SDL error. */
-bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);
 /** @brief Release actor state without freeing borrowed images/layout/map. @param actors Owned
  * simulation or NULL. */
 void SotnActors_Destroy(SotnActors *actors);

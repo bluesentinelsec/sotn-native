@@ -3,7 +3,6 @@
 // equipped unk17 item (Basilard's 174) without the casting grunt; kind0 airborne variants.
 #include "character_fixture.h"
 #include "player_internal.h"
-#include <sotn/subweapon.h>
 
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -911,30 +910,18 @@ static bool HeartRefresh(Fixture *f)
 }
 // func_8010EB5C through a shared-runtime owner: Up+attack spends the use, then func_8010EA54(8)
 // rolls once (grunt below four) and timer ALU_T_USE_SUBWPN holds four; a refused use falls
-// through to the hand attack without a roll; an unhandled id stays with the legacy service.
+// through to the hand attack without a roll, as does an unhandled (absent) subweapon.
 static bool SharedSubweapon(Fixture *f)
 {
-    SotnSubweapons *legacy = NULL;
     for (Uint16 k = 0; k < 4; ++k)
     {
         CHECK(Create(f, 26, k == 1 ? 6 : 1, 5, true));
-        CHECK(SotnSubweapons_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->character, f->map,
-                                    &legacy) &&
-              SotnPlayer_SetSubweapons(f->p, legacy) &&
-              SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, 0, 0) &&
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, 0, 0) &&
               SotnPlayer_SetSubweaponContext(f->p, SubweaponUse, f));
         f->subweapon_handled = k != 3;
         f->subweapon_used = k < 2;
         for (Uint16 v = 0; v < 4; ++v)
             Put16(f->dra + 0xcf60 + v * 2U, (Uint16)(0x6f0 + v));
-        // k3: the legacy service keeps an unhandled dagger (no grunt roll).
-        Uint8 *dagger = f->dra + 0x4a00 + 20;
-        dagger[0] = 7;
-        dagger[2] = 3;
-        dagger[6] = 2;
-        dagger[7] = 4;
-        dagger[10] = 0x5d;
-        dagger[12] = 2;
         SotnCharacterState c = {0};
         CHECK(SotnCharacter_Get(f->character, &c, NULL));
         c.subweapon = 1;
@@ -949,15 +936,9 @@ static bool SharedSubweapon(Fixture *f)
         if (k < 2)
             CHECK(!f->factories && f->roll_count == 1 && f->p->subweapon_ticks == 4 &&
                   f->p->animation.id == 0xbc && p.throwing_grunt == (k ? 0 : 0x6f1));
-        else if (k == 3)
-            CHECK(!f->factories && !f->roll_count && f->p->subweapon_ticks == 4 &&
-                  f->p->animation.id == 0x5d && !p.throwing_grunt);
         else
             CHECK(f->factories == 1 && f->item == 26 && !f->p->subweapon_ticks &&
                   !p.throwing_grunt);
-        SotnPlayer_SetSubweapons(f->p, NULL);
-        SotnSubweapons_Destroy(legacy);
-        legacy = NULL;
     }
     return true;
 }

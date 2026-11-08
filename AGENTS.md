@@ -118,7 +118,8 @@ global_flash; ClearPlayerRuntime clears it with a live entity41). Three DRAW_UNK
 moves the entity only while FLAG_POS_PLAYER_LOCKED (DRAW_UNK02 beats DRAW_UNK_200). Circle bp75 is
 KIND 0 (slots 32..63); FACTORY(4,14) particles are profile14 = behaviour12 streaks with camera
 lock. Not yet: BP_120 tint (func_80123F78), afterimage reset, MuteCd, func_800F27F4 gate. Every
-subweapon now runs on the shared runtime; the legacy service (subweapon.c) is unreached.
+subweapon now runs on the shared runtime; the legacy service is removed (subweapon.c keeps the
+definition read, Heart broach cost and func_800FE3C4 power).
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
@@ -2451,7 +2452,7 @@ enemy EXP, original level/resource/stat gains, selected MP recovery, and permane
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
 
 Every [subweapon](docs/laboratory-subweapons.md) now runs on the shared player runtime; the
-earlier bounded service is unreached until its removal.
+earlier bounded service has been removed.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
 Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character
