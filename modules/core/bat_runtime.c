@@ -444,8 +444,9 @@ static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint);
 bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                      Uint32 packed, Sint16 argument, bool *allocated)
 {
-    // The dagger's blueprint3, Vibhuti's blueprint26, Rebound Stone's blueprint24, Agunea's
-    // blueprint22, the Bible's blueprint77 and the cross's blueprint6 factories are owned here.
+    // The dagger's blueprint3, the axe's blueprint9, Vibhuti's blueprint26, Rebound Stone's
+    // blueprint24, Agunea's blueprint22, the Bible's blueprint77 and the cross's blueprint6
+    // factories are owned here.
     if (!r || !allocated ||
         !((packed == SOTN_VIBHUTI_BLUEPRINT && argument == SOTN_SUBWEAPON_VIBHUTI << 9) ||
           (packed == SOTN_REBOUND_STONE_BLUEPRINT && argument == SOTN_SUBWEAPON_REBOUND_STONE
@@ -453,7 +454,8 @@ bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource 
           (packed == SOTN_AGUNEA_BLUEPRINT && argument == SOTN_SUBWEAPON_AGUNEA << 9) ||
           (packed == SOTN_BIBLE_BLUEPRINT && argument == SOTN_SUBWEAPON_BIBLE << 9) ||
           (packed == SOTN_CROSS_BLUEPRINT && argument == SOTN_SUBWEAPON_CROSS << 9) ||
-          (packed == SOTN_DAGGER_BLUEPRINT && argument == SOTN_SUBWEAPON_DAGGER << 9)))
+          (packed == SOTN_DAGGER_BLUEPRINT && argument == SOTN_SUBWEAPON_DAGGER << 9) ||
+          (packed == SOTN_AXE_BLUEPRINT && argument == SOTN_SUBWEAPON_AXE << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -482,6 +484,7 @@ static Uint16 SubweaponEntity(Uint16 id)
            : id == SOTN_GIANT_CROSS             ? SOTN_GIANT_CROSS_ENTITY
            : id == SOTN_CROSS_PARTICLES         ? SOTN_CROSS_PARTICLES_ENTITY
            : id == SOTN_SUBWEAPON_DAGGER        ? SOTN_DAGGER_ENTITY
+           : id == SOTN_SUBWEAPON_AXE           ? SOTN_AXE_ENTITY
                                                 : 0;
 }
 static bool SubweaponKind(Uint16 kind)
@@ -490,7 +493,8 @@ static bool SubweaponKind(Uint16 kind)
            kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY ||
            kind == SOTN_BIBLE_ENTITY || kind == SOTN_BIBLE_TRAIL_ENTITY ||
            kind == SOTN_CROSS_ENTITY || kind == SOTN_GIANT_CROSS_ENTITY ||
-           kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY;
+           kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY ||
+           kind == SOTN_AXE_ENTITY;
 }
 // The Bible, its trail and the cross's three entities have neither FLAG_POS_CAMERA_LOCKED nor
 // DRAW_UNK02 rows: they keep their screen position as the camera moves. FLAG_UNK_20000 keeps the
@@ -509,7 +513,8 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                agunea = e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e->id == SOTN_AGUNEA_BOLT,
                bible = e->id == SOTN_SUBWEAPON_BIBLE, trail = e->id == SOTN_BIBLE_TRAIL,
                beam = e->id == SOTN_SUBWEAPON_CROSS, cross = e->id == SOTN_GIANT_CROSS,
-               sparks = e->id == SOTN_CROSS_PARTICLES, dagger = e->id == SOTN_SUBWEAPON_DAGGER;
+               sparks = e->id == SOTN_CROSS_PARTICLES, dagger = e->id == SOTN_SUBWEAPON_DAGGER,
+               axe = e->id == SOTN_SUBWEAPON_AXE;
     // The lightning, Bible trail and cross particles never roll properties: no group/attack.
     // Blueprint7 increments its giant crosses' parameters 0..5 (unused by their callback).
     return index >= 16 && index <= (bolt || trail ? 47 : 31) && SotnSubweaponEntity_Rows(e->id) &&
@@ -528,11 +533,15 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                                   e->bolt.end < SOTN_AGUNEA_BOLT_ROWS
                    : bible
                        ? e->step >= 1 && e->step <= 4 && e->bible.mode >= 0 && e->bible.mode <= 2
-                   : trail          ? e->step >= 1 && e->step <= 2
-                   : beam || dagger ? e->step >= 1 && e->step <= (beam ? 4 : 3)
-                   : cross          ? e->step == 1
-                   : sparks         ? e->step == 1 && e->sparks.timer >= 1 && e->sparks.timer <= 192
-                                    : e->step == 1 && e->timer && e->timer <= 0x80) &&
+                   : trail                 ? e->step >= 1 && e->step <= 2
+                   : beam || dagger || axe ? e->step >= 1 &&
+                                                 e->step <= (beam     ? 4
+                                                             : dagger ? 3
+                                                                      : 2) &&
+                                                 (!axe || e->axe.pose < 4)
+                   : cross                 ? e->step == 1
+                   : sparks ? e->step == 1 && e->sparks.timer >= 1 && e->sparks.timer <= 192
+                            : e->step == 1 && e->timer && e->timer <= 0x80) &&
                       c->primitive_count == SotnSubweaponEntity_Rows(e->id) &&
                       (bolt || trail || sparks ? !c->group && !c->state.subweapon.attack.active
                                                : c->group >= 7 && c->group <= 10 &&
@@ -569,6 +578,7 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
     PruneRoomFactory(r, SOTN_GIANT_CROSS_BLUEPRINT);
     PruneRoomFactory(r, SOTN_CROSS_PARTICLES_BLUEPRINT);
     PruneRoomFactory(r, SOTN_DAGGER_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_AXE_BLUEPRINT);
     r->subweapon_mask = 0;
     return true;
 }
@@ -2490,6 +2500,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                           : c.kind == SOTN_BIBLE_ENTITY         ? SOTN_SUBWEAPON_BIBLE
                           : c.kind == SOTN_CROSS_ENTITY         ? SOTN_SUBWEAPON_CROSS
                           : c.kind == SOTN_DAGGER_ENTITY        ? SOTN_SUBWEAPON_DAGGER
+                          : c.kind == SOTN_AXE_ENTITY           ? SOTN_SUBWEAPON_AXE
                           : c.kind == SOTN_GIANT_CROSS_ENTITY   ? SOTN_GIANT_CROSS
                           : sparks                              ? SOTN_CROSS_PARTICLES
                           : trail                               ? SOTN_BIBLE_TRAIL
@@ -6332,6 +6343,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if ((events.sound && !Sound(&r, events.sound)) ||
                 (events.sound_after && !Sound(&r, events.sound_after)))
                 return false;
+            // The axe's spin swish is PlaySfxVolPan(SWISH_C, volume, 0).
+            if (events.sound && events.volume_sound)
+            {
+                const Uint16 at = (Uint16)(r.sound_count - (events.sound_after ? 2U : 1U));
+                r.sound_volume_mask |= (Uint64)1 << at;
+                r.sound_volumes[at] = events.volume;
+            }
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
             if (events.disable_attack)

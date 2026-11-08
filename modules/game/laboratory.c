@@ -1127,8 +1127,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (dagger, Rebound Stone, Vibhuti, Agunea,
-// Bible, Cross):
+// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, Rebound Stone, Vibhuti,
+// Agunea, Bible, Cross):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1138,12 +1138,12 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     SotnCharacterState progress = {0};
     if (!s || !handled || !used || !animation || !SotnCharacter_Get(s->character, &progress, NULL))
         return SDL_SetError("Shared subweapon use requires its session and outputs");
-    *handled = progress.subweapon == SOTN_SUBWEAPON_DAGGER ||
-               progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
-               progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
-               progress.subweapon == SOTN_SUBWEAPON_AGUNEA ||
-               progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
-               progress.subweapon == SOTN_SUBWEAPON_CROSS;
+    *handled =
+        progress.subweapon == SOTN_SUBWEAPON_DAGGER || progress.subweapon == SOTN_SUBWEAPON_AXE ||
+        progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
+        progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
+        progress.subweapon == SOTN_SUBWEAPON_AGUNEA || progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
+        progress.subweapon == SOTN_SUBWEAPON_CROSS;
     *used = false;
     *animation = 0;
     if (!*handled)
@@ -4803,6 +4803,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                          .kind = SOTN_DRAW_SUBWEAPON_LINE})))
                     return false;
             }
+            // The axe and its afterimages (screen words, all at one priority).
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_SUBWEAPON_AXE
+                                ? SOTN_AXE_ROWS
+                                : 0;
+                 j > 0; --j)
+                if (((child->state.subweapon.motion.axe.visible >> (j - 1U)) & 1U) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = child->state.subweapon.motion.axe.row_priority,
+                                        .primitive = (Uint16)(owner * 64U + j - 1U),
+                                        .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                    return false;
             // The cross beam's GT4, a giant cross's visible faces and the particles' shown sparks.
             if (child->subweapon && child->initialized &&
                 child->state.subweapon.motion.id == SOTN_SUBWEAPON_CROSS &&
@@ -5749,6 +5762,35 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 {
                     q.x[v] = BlinkWord(cx + ((v & 1U) ? w : -w) - view_x);
                     q.y[v] = BlinkWord(cy + ((v & 2U) ? h : -h) - view_y);
+                }
+                if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
+                row < SOTN_AXE_ROWS && m->id == SOTN_SUBWEAPON_AXE &&
+                ((m->axe.visible >> row) & 1U) && SotnBatRuntime_SubweaponValid(c, index))
+            {
+                // Row 0 opaque (0x100); afterimages additive, tinted from D_800B0628 (0x135).
+                const SotnAxe *a = &m->axe;
+                Uint8 rgb[3] = {0};
+                if (row && !SotnSubweaponEntity_AxeTint(session->dra, a->tint[row - 1U], rgb))
+                    return false;
+                SotnPlayerEffectQuad q = {.u = {0, 0x18, 0, 0x18},
+                                          .v = {0, 0, 0x28, 0x28},
+                                          .red = {rgb[0], rgb[0], rgb[0], rgb[0]},
+                                          .green = {rgb[1], rgb[1], rgb[1], rgb[1]},
+                                          .blue = {rgb[2], rgb[2], rgb[2], rgb[2]},
+                                          .page = 0x1c,
+                                          .palette = a->palette,
+                                          .priority = a->row_priority,
+                                          .draw_mode = row ? 0x135 : 0x100};
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    q.x[v] = a->x[row][v];
+                    q.y[v] = a->y[row][v];
                 }
                 if (!DrawOriginalEffectQuad(session, &q) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
