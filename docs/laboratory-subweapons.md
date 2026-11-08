@@ -23,8 +23,9 @@ attack channels) has been removed; `subweapon.c` keeps only the definition read,
 cost and `func_800FE3C4`'s attack roll. Saved character progress includes hearts and the
 selected subweapon, not live subweapon entities.
 
-This is a selected checkpoint, not complete subweapon parity. Item crashes, the stopwatch's
-CD muting (see its document) and transform/form interactions remain incomplete.
+This is a selected checkpoint, not complete subweapon parity. Transform/form interactions remain
+incomplete. Alucard has no item crashes besides the Cross itself: its giant crosses are the crash
+(`EntitySubwpnCrashCross`); the other crashes belong to Richter's overlay.
 Texture/palette bytes and UV tables stay in private runtime files.
 
 For a controlled native test, append `--laboratory-test-profile dagger`, `axe`,

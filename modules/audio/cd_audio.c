@@ -29,6 +29,7 @@ struct SotnCdAudio
     Sint32 release_counter;
     Uint8 phase, saved, volume, target_volume, mode;
     bool acknowledge_busy, fade_busy, busy, serial, finite, managed, native_ready;
+    bool muted; /**< Original g_MuteCd: SetCdVolume(0,0,0) on every sound update. */
 };
 static Sint16 Word(Sint32 value)
 {
@@ -619,6 +620,15 @@ bool SotnCdAudio_Mute(SotnCdAudio *a)
     a->managed = a->native_ready = a->finite = false;
     a->fade_multiplier = 32;
     a->master_volume = a->master_target = 127;
+    a->muted = false; // InitSoundVars1 clears g_MuteCd.
+    return true;
+}
+bool SotnCdAudio_SetMuted(SotnCdAudio *a, bool muted)
+{
+    if (!a)
+        return SDL_SetError("CD muting requires its actual owner");
+    // MuteCd/UnMuteCd only switch the flag; the next sound update applies the CD volume.
+    a->muted = muted;
     return true;
 }
 bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
@@ -699,7 +709,8 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
         if (!SotnMusic_Tick(a->current, pcm, count) || !Current(a, &state))
             return false;
         for (Uint32 i = 0; i < SOTN_SOUND_FRAMES * 2; ++i)
-            pcm[i] = state.volume ? (Sint16)((Sint32)pcm[i] * a->volume / state.volume) : 0;
+            pcm[i] =
+                state.volume && !a->muted ? (Sint16)((Sint32)pcm[i] * a->volume / state.volume) : 0;
     }
     return true;
 }
@@ -731,7 +742,8 @@ bool SotnCdAudio_Get(const SotnCdAudio *a, SotnCdAudioState *out)
                               .managed = a->managed,
                               .fade_acknowledged = !a->fade_busy,
                               .xa_active = a->fade_busy || a->playing != 0,
-                              .decoder_present = a->current != NULL};
+                              .decoder_present = a->current != NULL,
+                              .muted = a->muted};
     if (a->current && !SotnMusic_Get(a->current, &state.decoder))
         return false;
     *out = state;

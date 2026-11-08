@@ -85,11 +85,29 @@ It also copies the player's draw flags. With its own zero rotate and scale field
 flag changes the result: under [Secret boots](player-secret-boots.md) the tint lives and fades
 but draws nothing, as in the original.
 
-These original effects of an active stopwatch are **not yet implemented**:
+## CD mute
 
-- CD music muting (`MuteCd`, with its `stopMusicFlag` resume branches);
-- `func_800F27F4`, which gates only the Faerie and Sprite familiars' speech (neither runs
-  natively yet).
+`RunMainEngine`'s ordinary update ends with a check of the freeze flag (`D_8006BB00` records the
+mute):
+
+- **Mute.** The first update with the freeze calls `MuteCd`. Every sound update then sets the CD
+  volume to zero. The music (and any XA speech) keeps playing silently.
+- **Unmute.** The update after the freeze clears calls `UnMuteCd`, and the music is audible again
+  at its current position.
+- **Stopped music.** A save room stops the stage music and sets `stopMusicFlag`. Leaving a room
+  normally replays it, but `Engine_3` skips that while the stopwatch is active. The release then
+  plays the stage music again, except in save and loading rooms (room flags `0x60`).
+  - If `pauseEnemies` ended the freeze, the release only clears the flag and the music stays off.
+- **Skipped updates.** The spell freeze's entry update returns before the check. A new stage's
+  `Engine_Init` and `MuteSound` clear both flags (natively, a fresh session and CD owner).
+
+The native session checks the flag just before the update's audio pass, which corresponds to the
+original sound update at the top of the next loop. A native room crossing is detected after that
+pass, so a freeze edge on a crossing update is applied one update earlier than in the original.
+The CD owner's unread `D_8013B694` counter is not kept.
+
+`func_800F27F4` also reads the mute flag, but it gates only the Faerie and Sprite familiars'
+speech, and neither runs natively yet.
 
 ## Validation
 
@@ -105,6 +123,9 @@ These original effects of an active stopwatch are **not yet implemented**:
   - The tint's birth copies, animSet refusal, 125-update fade and freeze end; its runtime request,
     slot, frozen fade, room retention and retirement; the player's one request per freeze start
     (and again after a failed update); the afterimage reset (a mutant without it fails).
+  - The CD owner's mute: a muted CD keeps the reference decoder's position but outputs silence,
+    unmuting resumes the exact samples and `MuteSound` clears the flag (a mutant that keeps the
+    output fails).
 - **Private emulator comparison.**
   - It runs the original `EntityStopWatch` and `EntityStopWatchExpandingCircle` on the actual
     DRA/SLUS with a wandering player and injected pauses.
@@ -121,9 +142,16 @@ These original effects of an active stopwatch are **not yet implemented**:
   - A second probe: one tint copying the player's frame, fading over 125 updates and drawing
     (about 1,100 pixels), with no afterimage display through 531 frozen updates while the player
     walks (294 appear without the reset).
+  - A third probe covers the CD mute:
+    - The Laboratory music is muted from the use's update, keeps advancing through 531 frozen
+      updates and is audible again when the freeze ends.
+    - Music stopped during the freeze (a save-room stop fixture) is not replayed until the
+      release, which plays it again.
+    - A `pauseEnemies` release leaves it off.
+    - Mutants that drop the restart hold or the `pauseEnemies` branch fail.
 
 These use explicit subweapon/hearts/protection/position fixtures, not acquisition, route or
 console evidence.
 
-Adapted source: `src/dra/8A0A4.c`, `7E4BC.c` and `692E8.c` at the pinned reconstructed revision
+Adapted source: `src/dra/8A0A4.c`, `7E4BC.c`, `692E8.c`, `5087C.c` and `sound.c` at the pinned reconstructed revision
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, AGPL-3.0-or-later.

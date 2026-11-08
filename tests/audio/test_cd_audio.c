@@ -28,11 +28,11 @@ static bool SameState(SotnCdAudioState a, SotnCdAudioState b)
            a.master_volume == b.master_volume && a.master_target == b.master_target &&
            a.release_counter == b.release_counter && a.fade_acknowledged == b.fade_acknowledged &&
            a.xa_active == b.xa_active && a.decoder_present == b.decoder_present &&
-           a.decoder.sector == b.decoder.sector && a.decoder.remaining == b.decoder.remaining &&
-           a.decoder.duration == b.decoder.duration && a.decoder.start == b.decoder.start &&
-           a.decoder.id == b.decoder.id && a.decoder.volume == b.decoder.volume &&
-           a.decoder.mode == b.decoder.mode && a.decoder.looping == b.decoder.looping &&
-           a.decoder.once == b.decoder.once;
+           a.muted == b.muted && a.decoder.sector == b.decoder.sector &&
+           a.decoder.remaining == b.decoder.remaining && a.decoder.duration == b.decoder.duration &&
+           a.decoder.start == b.decoder.start && a.decoder.id == b.decoder.id &&
+           a.decoder.volume == b.decoder.volume && a.decoder.mode == b.decoder.mode &&
+           a.decoder.looping == b.decoder.looping && a.decoder.once == b.decoder.once;
 }
 static bool Tick(SotnCdAudio *a, Uint32 *clock, SotnCdAudioState *state)
 {
@@ -116,6 +116,39 @@ static bool LoopVolume(SotnDataView dra, SotnStream *stream)
             CHECK(actual[i] == (Sint16)((Sint32)expected[i] * 127 / state.volume));
         CHECK(state.volume == (tick < 16 ? 127 : 63));
     }
+    SotnCdAudio_Destroy(a);
+    SotnMusic_Destroy(reference);
+    return true;
+}
+// MuteCd/UnMuteCd: muted updates still advance the playing CD but output volume zero
+// (SetCdVolume(0, 0, 0)); unmuting resumes the very same stream position.
+static bool MutedOutput(SotnDataView dra, SotnStream *stream)
+{
+    SotnMusic *reference = NULL, *music = NULL;
+    SotnCdAudio *a = NULL;
+    SotnCdAudioState s = {0};
+    CHECK(SotnMusic_Create(dra, stream, &reference) && SotnMusic_Create(dra, stream, &music));
+    CHECK(SotnCdAudio_Create(dra, stream, &music, 0, &a) && !music && SotnCdAudio_Get(a, &s) &&
+          !s.muted && !SotnCdAudio_SetMuted(NULL, true));
+    bool heard = false;
+    for (Uint32 tick = 0; tick < 30; ++tick)
+    {
+        const bool muted = tick >= 4 && tick < 20;
+        if (tick == 4 || tick == 20)
+            CHECK(SotnCdAudio_SetMuted(a, muted) && SotnCdAudio_Get(a, &s) && s.muted == muted);
+        Sint16 expected[SOTN_SOUND_FRAMES * 2] = {0}, actual[SOTN_SOUND_FRAMES * 2] = {0};
+        SotnMusicState state = {0};
+        CHECK(SotnMusic_Tick(reference, expected, SDL_arraysize(expected)) &&
+              SotnMusic_Get(reference, &state));
+        CHECK(SotnCdAudio_Tick(a, tick, actual, SDL_arraysize(actual)) && SotnCdAudio_Get(a, &s));
+        CHECK(s.decoder.sector == state.sector && s.decoder.remaining == state.remaining);
+        for (Uint32 i = 0; i < SDL_arraysize(actual); ++i)
+        {
+            CHECK(actual[i] == (muted ? 0 : (Sint16)((Sint32)expected[i] * 127 / state.volume)));
+            heard = heard || (muted && expected[i] != 0);
+        }
+    }
+    CHECK(heard);
     SotnCdAudio_Destroy(a);
     SotnMusic_Destroy(reference);
     return true;
@@ -670,8 +703,10 @@ static bool StoppedReset(SotnSoundSources inputs, SotnDataView image, SotnDataVi
           !SDL_memcmp(sound->ram, held->ram, SOTN_SPU_RAM_SIZE) && SotnCdAudio_Queue(a, 0x33e) &&
           Tick(a, &clock, &s) && s.phase == 2 && s.decoder_present && !s.serial && !s.playing);
     *held = *sound;
-    CHECK(SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && !s.decoder_present && s.queue_empty &&
-          !s.playing && !s.serial &&
+    // MuteSound's InitSoundVars1 also clears g_MuteCd.
+    CHECK(SotnCdAudio_SetMuted(a, true) && SotnCdAudio_Get(a, &s) && s.muted);
+    CHECK(SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && !s.muted && !s.decoder_present &&
+          s.queue_empty && !s.playing && !s.serial &&
           !SDL_memcmp(sound->voices, held->voices, sizeof(sound->voices)) &&
           !SDL_memcmp(&sound->reverb, &held->reverb, sizeof(sound->reverb)) &&
           !SDL_memcmp(sound->ram, held->ram, SOTN_SPU_RAM_SIZE));
@@ -840,6 +875,7 @@ static bool Run(const char *directory)
     CHECK(SotnData_OpenStreamSpec(directory, &spec, &stream));
     dra[0x1d224 + 47 * 16 + 10] = 63;
     CHECK(LoopVolume((SotnDataView){dra, 0x20000}, stream) &&
+          MutedOutput((SotnDataView){dra, 0x20000}, stream) &&
           CommandTransport((SotnDataView){dra, 0x20000}, stream) &&
           CommandMusic((SotnDataView){dra, 0x20000}, stream) &&
           LoopPauseOrder((SotnDataView){dra, 0x20000}, stream) &&
