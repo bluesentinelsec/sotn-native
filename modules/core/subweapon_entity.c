@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // dra/84B88.c:EntitySubwpnKnife/EntitySubwpnThrownAxe/EntitySubwpnHolyWater/
-// EntitySubwpnHolyWaterBreakGlass/EntitySubwpnHolyWaterFlame/CheckHolyWaterCollision/EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
+// EntitySubwpnHolyWaterBreakGlass/EntitySubwpnHolyWaterFlame/CheckHolyWaterCollision/
+// (8A0A4.c)
+// EntityStopWatch/EntityStopWatchExpandingCircle/EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
 // EntityAguneaHitEnemy/EntitySubwpnCrashCross/EntitySubwpnCrashCrossParticles, wolfForm.c:
 // EntityGiantSpinningCross, 7879C.c:func_80119E78, 8A0A4.c:EntitySubwpnBible/
 // EntitySubwpnBibleTrail and rebound_stone.h, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
@@ -1552,9 +1554,318 @@ static bool HolyFlame(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *ran
     *random = cursor;
     return true;
 }
+static void Box(SotnStopwatch *w, Uint16 row, Sint32 x0, Sint32 x1, Sint32 y0, Sint32 y1)
+{
+    const Sint32 x[4] = {x0, x1, x0, x1}, y[4] = {y0, y0, y1, y1};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        w->x[row][v] = Word(x[v]);
+        w->y[row][v] = Word(y[v]);
+    }
+}
+// The dial's corners: (x, y) plus the rotated (+-ox, +-oy) offsets.
+static bool Dial(SotnStopwatch *w, SotnDataView executable, Sint32 x, Sint32 y, Sint32 ox,
+                 Sint32 oy)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(executable, w->angle, &t))
+        return false;
+    const Sint32 c = t.sine, d = t.cosine;
+    const Sint32 sx[4] = {-ox, ox, -ox, ox}, sy[4] = {-oy, -oy, oy, oy};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        w->x[0][v] = Word(x + Asr(d * sx[v] - c * sy[v], 12));
+        w->y[0][v] = Word(y + Asr(c * sx[v] + d * sy[v], 12));
+    }
+    return true;
+}
+// One countdown digit's box: popping in at the start of a second and out at its end. The tens
+// digit enters/leaves early (ticks 0..7, from 0x44), the units digit of two late (ticks 4..11, from
+// 0x48); a lone digit enters early and leaves late.
+static void Digit(SotnStopwatch *w, Uint16 row, Sint32 x, Sint32 y, Sint16 tick, bool late_enter,
+                  bool late_exit, Sint32 half)
+{
+    if (tick < (late_enter ? 0xc : 8))
+    {
+        const Sint32 grow = late_enter ? (tick - 4) : tick;
+        Sint32 ox = grow / 2, oy = 7 - grow;
+        if (late_enter)
+        {
+            ox = SDL_max(ox, 0);
+            oy = SDL_max(oy, 0);
+        }
+        Box(w, row, x - ox, x + ox, y - 8 - oy, y + 8 + oy);
+    }
+    else if (tick >= (late_exit ? 0x48 : 0x44))
+    {
+        const Sint32 ox = late_exit ? (0x50 - tick) / 2 : SDL_max((0x50 - (tick + 4)) / 2, 0),
+                     oy = late_exit ? tick - 0x48 : SDL_min(tick - 0x44, 8);
+        Box(w, row, x - ox, x + ox, y - 8 - oy, y + 8 + oy);
+    }
+    else
+        Box(w, row, x - half, x + half, y - 8, y + 8);
+}
+// EntityStopWatch. g_unkGraphicsStruct.pauseEnemies (stage scripts) cancels it: the freeze
+// flag clears every update and a hovering watch jumps to its exit. It hovers behind the player,
+// grows in, rises, counts five seconds of eighty updates with hops between ticks, then
+// bursts (FACTORY(4, 14)) and clears the freeze.
+static bool Stopwatch(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                      SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnStopwatch *w = &next.stopwatch;
+    Uint32 cursor = *random;
+    if (in.enemies_paused)
+    {
+        out->stopwatch_clear = true;
+        if (next.step && next.step < 4)
+            next.step = 4;
+    }
+    switch (next.step)
+    {
+    case 0:
+        if (in.enemies_paused || !in.allocated)
+        {
+            next.removed = true;
+            *e = next;
+            return true;
+        }
+        // CAMERA_LOCKED | KEEP_ALIVE_OFFCAMERA | HAS_PRIMS | POS_PLAYER_LOCKED | FLAG_UNK_20000
+        next.flags = 0x0c860000U;
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            w->v[0][v] = v < 2 ? 0xc0 : 0xd8;
+            w->u[0][v] = (Uint8)(((v & 1U) != 0) == next.facing_left ? 0xa8 : 0x98);
+        }
+        w->palette0 = 0x17f;
+        w->priority[0] = (Uint16)(in.player_priority + 1U);
+        w->priority[1] = w->priority[2] = (Uint16)(in.player_priority + 3U);
+        w->draw_mode[0] = w->draw_mode[1] = w->draw_mode[2] = 0x30a;
+        out->factories = 1;
+        out->factory_packed[0] = SOTN_STOPWATCH_CIRCLE_BLUEPRINT;
+        out->factory_x = next.x;
+        out->factory_y = next.y;
+        out->sound = 0x6ad; // SFX_UI_ALERT_TINK
+        out->stopwatch_set = true;
+        next.step = 1;
+        break;
+    case 1:
+        w->draw_mode[0] &= 0xfff7U;
+        w->height = Add(w->height, 0x18000);
+        if (w->height >= 0x1a0000)
+            next.step = 2;
+        break;
+    case 2:
+        w->height = Add(w->height, -0x10000);
+        if (w->height <= 0x100000)
+        {
+            w->t = 5;
+            out->sound = 0x6a1; // SFX_STOPWATCH_TICK
+            next.step = 3;
+        }
+        break;
+    case 3:
+        w->tick = Word(w->tick + 1);
+        if (w->tick > 80)
+        {
+            out->sound = 0x6a1;
+            w->tick = 0;
+            w->bounce = 1;
+            w->t = Word(w->t - 1);
+            if (w->t < 0)
+            {
+                next.step = 4;
+                break;
+            }
+        }
+        if (w->t < 5)
+        {
+            Uint16 row = 1;
+            if (w->t >= 10)
+            {
+                w->two_digits = 1;
+                const Uint8 x = (Uint8)((w->t / 10) * 8);
+                const Uint8 u[4] = {(Uint8)(x + 0x18), (Uint8)(x + 0x1e), (Uint8)(x + 0x18),
+                                    (Uint8)(x + 0x1e)},
+                            v[4] = {0x40, 0x40, 0x49, 0x49};
+                SDL_memcpy(w->u[1], u, 4);
+                SDL_memcpy(w->v[1], v, 4);
+                w->draw_mode[1] &= 0xfff7U;
+                row = 2;
+            }
+            else
+                w->two_digits = 0;
+            Uint8 x = (Uint8)((w->t % 10) * 8);
+            if (!x)
+                x = 0x50;
+            const Uint8 u[4] = {(Uint8)(x + 0x18), (Uint8)(x + 0x1e), (Uint8)(x + 0x18),
+                                (Uint8)(x + 0x1e)},
+                        v[4] = {0x40, 0x40, 0x49, 0x49};
+            SDL_memcpy(w->u[row], u, 4);
+            SDL_memcpy(w->v[row], v, 4);
+            w->draw_mode[row] &= 0xfff7U;
+        }
+        break;
+    case 4:
+        next.flags &= ~0x00040000U;
+        w->priority[0] = 0xc2;
+        w->draw_mode[0] &= 0xfdffU;
+        w->draw_mode[1] |= 8U;
+        w->draw_mode[2] |= 8U;
+        next.x = WithPixel(next.x, Pixel(next.x) + (next.facing_left ? 6 : -6));
+        next.y = WithPixel(next.y, Pixel(next.y) - Asr(w->height, 16));
+        w->t = 0;
+        next.step = 5;
+        break;
+    case 5:
+        w->t = Word(w->t + 1);
+        if (w->t >= 4)
+        {
+            w->palette0 = 0x15f; // PAL_FILL_WHITE
+            w->draw_mode[0] |= 4U;
+            out->sound = 0x6a4; // SFX_UI_SUBWEAPON_TINK
+            next.step = 6;
+        }
+        break;
+    case 6:
+        w->t = Word(w->t + 1);
+        if (w->t > 14)
+        {
+            out->factories = 1;
+            out->factory_packed[0] = SOTN_STOPWATCH_BURST;
+            out->factory_x = next.x;
+            out->factory_y = next.y;
+            next.step = 7;
+        }
+        break;
+    default:
+        out->stopwatch_clear = true;
+        next.removed = true;
+        *e = next;
+        return true;
+    }
+    if (next.step < 5)
+    {
+        const Sint32 x = Add(in.player_x, in.player_facing_left ? 0x80000 : -0x80000),
+                     y = Add(in.player_y, -0x100000);
+        next.x = Add(next.x, (Sint32)(((Sint64)x - next.x) / 12));
+        next.y = Add(next.y, (Sint32)(((Sint64)y - next.y) / 4));
+        if (in.player_facing_left != next.facing_left &&
+            (SDL_abs(x - next.x) < 0x10000 || (!next.facing_left && next.x > x) ||
+             (next.facing_left && next.x < x)))
+            next.facing_left = in.player_facing_left;
+        for (Uint16 v = 0; v < 4; ++v)
+            w->u[0][v] = (Uint8)(((v & 1U) != 0) == next.facing_left ? 0xa8 : 0x98);
+    }
+    const Sint32 px = Pixel(next.x), py = Pixel(next.y);
+    if (next.step < 3)
+    {
+        const Sint32 x = (next.facing_left ? 6 : -6) + px, y = py - Asr(w->height, 16);
+        if (w->scale < 100)
+            w->scale = Word(w->scale + 4);
+        if (w->angle < 0x1000)
+            w->angle = Word(w->angle + 0x80);
+        if (!Dial(w, in.executable, x, y, Word(w->scale * 8 / 100), Word(w->scale * 12 / 100)))
+            return false;
+    }
+    else if (next.step < 5)
+    {
+        if (w->height <= 0x100000)
+        {
+            if (w->bounce)
+            {
+                w->velocity = (Sint32)((SotnCombat_Random(&cursor) % 64 + 0x200) << 8);
+                w->bounce = 0;
+            }
+            else
+                w->velocity = (Sint32)((SotnCombat_Random(&cursor) % 128 + 0x100) << 8);
+            w->angle = w->angle >= 0 ? Word(-(Sint32)(SotnCombat_Random(&cursor) % 64 + 0x40))
+                                     : Word(SotnCombat_Random(&cursor) % 64 + 0x40);
+        }
+        w->height = Add(w->height, w->velocity);
+        w->velocity = Add(w->velocity, -0x4000);
+        if (!Dial(w, in.executable, (next.facing_left ? 6 : -6) + px, py - Asr(w->height, 16), 8,
+                  12))
+            return false;
+    }
+    else
+    {
+        const Sint32 ox = SDL_max(8 - w->t, 1), oy = SDL_min(w->t * 32 + 12, 0x80);
+        Box(w, 0, px - ox, px + ox, py - oy, py + oy);
+    }
+    if (next.step < 4)
+    {
+        const Sint32 y = py - 14;
+        if (w->two_digits)
+        {
+            Digit(w, 1, px - (next.facing_left ? 10 : -4), y, w->tick, false, false, 4);
+            Digit(w, 2, px - (next.facing_left ? 4 : -10), y, w->tick, true, true, 4);
+        }
+        else
+            Digit(w, 1, px - (next.facing_left ? 4 : -4), y, w->tick, false, true, 5);
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
+// EntityStopWatchExpandingCircle: sixteen wedges grow by 0x18 a update for thirty updates.
+static bool StopwatchCircle(SotnSubweaponEntity *e, SotnSubweaponInput in)
+{
+    SotnSubweaponEntity next = *e;
+    SotnStopwatchCircle *c = &next.circle;
+    if (!next.step)
+    {
+        // CAMERA_LOCKED | KEEP_ALIVE_OFFCAMERA | HAS_PRIMS | FLAG_UNK_20000
+        next.flags = 0x0c820000U;
+        next.priority = 0xc2;
+        for (Uint16 i = 0; i < 16; ++i)
+            for (Uint16 k = 0; k < 2; ++k)
+            {
+                SotnMathTrig t = {0};
+                if (!SotnMath_Trig(in.executable, (Sint32)(i + k) << 8, &t))
+                    return false;
+                c->u[i][k] = (Uint8)(Asr(t.sine * 32, 12) + 0x20);
+                c->v[i][k] = (Uint8)(-Asr(t.cosine * 32, 12) + 0xdf);
+            }
+        c->size = 0x20;
+        next.step = 1;
+    }
+    else
+    {
+        c->size = Word(c->size + 0x18);
+        c->timer = Word(c->timer + 1);
+        if (c->timer > 30)
+        {
+            next.removed = true;
+            *e = next;
+            return true;
+        }
+    }
+    const Sint16 x = Word(Pixel(next.x) - in.screen_x), y = Word(Pixel(next.y) - in.screen_y);
+    const Sint32 inner = Word(c->size - 0x20);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnMathTrig a = {0}, b = {0};
+        if (!SotnMath_Trig(in.executable, (Sint32)i << 8, &a) ||
+            !SotnMath_Trig(in.executable, (Sint32)(i + 1) << 8, &b))
+            return false;
+        c->x[i][0] = Word(x + Asr(a.sine * c->size, 12));
+        c->y[i][0] = Word(y - Asr(a.cosine * c->size, 12));
+        c->x[i][2] = Word(x + Asr(a.sine * inner, 12));
+        c->y[i][2] = Word(y - Asr(a.cosine * inner, 12));
+        c->x[i][1] = Word(x + Asr(b.sine * c->size, 12));
+        c->y[i][1] = Word(y - Asr(b.cosine * c->size, 12));
+        c->x[i][3] = Word(x + Asr(b.sine * inner, 12));
+        c->y[i][3] = Word(y - Asr(b.cosine * inner, 12));
+    }
+    *e = next;
+    return true;
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
-    return id == SOTN_HOLY_WATER_FLAME                            ? SOTN_HOLY_WATER_FLAME_ROWS
+    return id == SOTN_SUBWEAPON_STOPWATCH                         ? SOTN_STOPWATCH_ROWS
+           : id == SOTN_STOPWATCH_CIRCLE                          ? SOTN_STOPWATCH_CIRCLE_ROWS
+           : id == SOTN_HOLY_WATER_FLAME                          ? SOTN_HOLY_WATER_FLAME_ROWS
            : id == SOTN_HOLY_WATER_GLASS                          ? SOTN_HOLY_WATER_GLASS_ROWS
            : id == SOTN_SUBWEAPON_AXE                             ? SOTN_AXE_ROWS
            : id == SOTN_SUBWEAPON_DAGGER                          ? SOTN_DAGGER_ROWS
@@ -1584,15 +1895,19 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
                dagger = e && e->id == SOTN_SUBWEAPON_DAGGER, axe = e && e->id == SOTN_SUBWEAPON_AXE,
                holy = e && e->id == SOTN_SUBWEAPON_HOLY_WATER,
                glass = e && e->id == SOTN_HOLY_WATER_GLASS,
-               flame = e && e->id == SOTN_HOLY_WATER_FLAME;
+               flame = e && e->id == SOTN_HOLY_WATER_FLAME,
+               watch = e && e->id == SOTN_SUBWEAPON_STOPWATCH,
+               circle = e && e->id == SOTN_STOPWATCH_CIRCLE;
     if (!e || !random || !events || e->removed ||
+        (watch && (e->step > 7 || (e->step && (e->stopwatch.t < -1 || e->stopwatch.t > 15)))) ||
+        (circle && (e->step > 1 || e->circle.timer < 0 || e->circle.timer > 30)) ||
         (!vibhuti && !stone && !agunea && !bolt && !bible && !trail && !beam && !cross && !sparks &&
-         !dagger && !axe && !holy && !glass && !flame) ||
+         !dagger && !axe && !holy && !glass && !flame && !watch && !circle) ||
         (holy && e->step > 3) || (glass && (e->step > 1 || (e->step && e->glass.timer < 1))) ||
         (flame && (e->step > 1 || (e->step && e->flame.timer < 0x11))) || (dagger && e->step > 3) ||
         (axe && (e->step > 2 || e->axe.pose > 3)) ||
-        (!in.properties && !bolt && !trail && !sparks && !glass) || (beam && e->step > 4) ||
-        (cross && e->step > 1) ||
+        (!in.properties && !bolt && !trail && !sparks && !glass && !watch && !circle) ||
+        (beam && e->step > 4) || (cross && e->step > 1) ||
         (sparks && (e->step > 1 || (e->step && (e->sparks.timer < 1 || e->sparks.timer > 192)))) ||
         (bible && (e->step > 4 || e->bible.mode < 0 || e->bible.mode > 2)) ||
         (trail && e->step > 2) ||
@@ -1617,6 +1932,9 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
         return HolyFlame(e, in, random, events);
     if (holy)
         return HolyWater(e, in, random, events);
+    // The stopwatch checks pauseEnemies before allocating.
+    if (watch)
+        return Stopwatch(e, in, random, events);
     if (!e->step && !in.allocated)
     {
         e->removed = true; // Row allocation failure: DestroyEntity before any RNG.
@@ -1634,6 +1952,8 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
     }
     if (glass)
         return HolyGlass(e, in, random);
+    if (circle)
+        return StopwatchCircle(e, in);
     if (beam)
         return Beam(e, in, random, events);
     if (dagger)

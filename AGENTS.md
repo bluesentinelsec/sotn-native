@@ -109,8 +109,16 @@ glass (entity40, key SOTN_HOLY_WATER_GLASS, 16 rows, 48 rands, 32..63) and four 
 D_8013841C<<16, 11<<9) flames (entity23, subweapon11; r.holy_counter, never saved; flame
 parameter high byte allowed). Flames roll three colours BEFORE AllocPrimitives (failure still
 consumes them), request FACTORY(4,7) profile7 smoke (player particles behaviour3 like 4/11),
-toggle hitboxState via attack_set/attack_on, D_800B0688 UVs as s32 pairs. The stopwatch still
-uses the old service until moved; it is then removed.
+toggle hitboxState via attack_set/attack_on, D_800B0688 UVs as s32 pairs.
+[Stopwatch](docs/player-stopwatch.md) (subweapon6, bp71 origin0, entity41, no properties): refused
+while pauseEnemies (control.block_stopwatch via StopwatchPaused / runtime input stopwatch_paused),
+which also clears D_800973FC every update and sends a hovering watch to step4. Runtime owns
+D_800973FC as SotnBatRuntime.stopwatch (enemies via actors->bat_runtime, marble clock, Fairy/Sword
+global_flash; ClearPlayerRuntime clears it with a live entity41). Three DRAW_UNK02 rows; PlayerShove
+moves the entity only while FLAG_POS_PLAYER_LOCKED (DRAW_UNK02 beats DRAW_UNK_200). Circle bp75 is
+KIND 0 (slots 32..63); FACTORY(4,14) particles are profile14 = behaviour12 streaks with camera
+lock. Not yet: BP_120 tint (func_80123F78), afterimage reset, MuteCd, func_800F27F4 gate. Every
+subweapon now runs on the shared runtime; the legacy service (subweapon.c) is unreached.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
@@ -2442,8 +2450,8 @@ Version 9 saves retain this supported progress; versions 1/2/3/4 migrate explici
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
 
-The [selected subweapon service](docs/laboratory-subweapons.md) integrates the
-stopwatch; the other subweapons now run on the shared player runtime.
+Every [subweapon](docs/laboratory-subweapons.md) now runs on the shared player runtime; the
+earlier bounded service is unreached until its removal.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
 Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character

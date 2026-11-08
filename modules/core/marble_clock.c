@@ -58,7 +58,7 @@ static bool Controller(SotnActors *s, Actor *a)
         else
             --a->clock.bell_wait;
     }
-    const bool stopped = SotnSubweapons_Frozen(s->subweapons);
+    const bool stopped = s->bat_runtime && s->bat_runtime->stopwatch;
     if (!stopped)
     {
         if (Pixel(s->player.y) - s->camera_y > 128)

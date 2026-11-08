@@ -457,7 +457,8 @@ bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource 
           (packed == SOTN_CROSS_BLUEPRINT && argument == SOTN_SUBWEAPON_CROSS << 9) ||
           (packed == SOTN_DAGGER_BLUEPRINT && argument == SOTN_SUBWEAPON_DAGGER << 9) ||
           (packed == SOTN_AXE_BLUEPRINT && argument == SOTN_SUBWEAPON_AXE << 9) ||
-          (packed == SOTN_HOLY_WATER_BLUEPRINT && argument == SOTN_SUBWEAPON_HOLY_WATER << 9)))
+          (packed == SOTN_HOLY_WATER_BLUEPRINT && argument == SOTN_SUBWEAPON_HOLY_WATER << 9) ||
+          (packed == SOTN_STOPWATCH_BLUEPRINT && argument == SOTN_SUBWEAPON_STOPWATCH << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -490,6 +491,8 @@ static Uint16 SubweaponEntity(Uint16 id)
            : id == SOTN_SUBWEAPON_HOLY_WATER    ? SOTN_HOLY_WATER_ENTITY
            : id == SOTN_HOLY_WATER_FLAME        ? SOTN_HOLY_WATER_FLAME_ENTITY
            : id == SOTN_HOLY_WATER_GLASS        ? SOTN_HOLY_WATER_GLASS_ENTITY
+           : id == SOTN_SUBWEAPON_STOPWATCH     ? SOTN_STOPWATCH_ENTITY
+           : id == SOTN_STOPWATCH_CIRCLE        ? SOTN_STOPWATCH_CIRCLE_ENTITY
                                                 : 0;
 }
 static bool SubweaponKind(Uint16 kind)
@@ -500,7 +503,8 @@ static bool SubweaponKind(Uint16 kind)
            kind == SOTN_CROSS_ENTITY || kind == SOTN_GIANT_CROSS_ENTITY ||
            kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY ||
            kind == SOTN_AXE_ENTITY || kind == SOTN_HOLY_WATER_ENTITY ||
-           kind == SOTN_HOLY_WATER_FLAME_ENTITY || kind == SOTN_HOLY_WATER_GLASS_ENTITY;
+           kind == SOTN_HOLY_WATER_FLAME_ENTITY || kind == SOTN_HOLY_WATER_GLASS_ENTITY ||
+           kind == SOTN_STOPWATCH_ENTITY || kind == SOTN_STOPWATCH_CIRCLE_ENTITY;
 }
 // The Bible, its trail and the cross's three entities have neither FLAG_POS_CAMERA_LOCKED nor
 // DRAW_UNK02 rows: they keep their screen position as the camera moves. FLAG_UNK_20000 keeps the
@@ -521,11 +525,12 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                beam = e->id == SOTN_SUBWEAPON_CROSS, cross = e->id == SOTN_GIANT_CROSS,
                sparks = e->id == SOTN_CROSS_PARTICLES, dagger = e->id == SOTN_SUBWEAPON_DAGGER,
                axe = e->id == SOTN_SUBWEAPON_AXE, holy = e->id == SOTN_SUBWEAPON_HOLY_WATER,
-               glass = e->id == SOTN_HOLY_WATER_GLASS, flame = e->id == SOTN_HOLY_WATER_FLAME;
+               glass = e->id == SOTN_HOLY_WATER_GLASS, flame = e->id == SOTN_HOLY_WATER_FLAME,
+               watch = e->id == SOTN_SUBWEAPON_STOPWATCH, circle = e->id == SOTN_STOPWATCH_CIRCLE;
     // The lightning, Bible trail, cross particles and holy water glass never roll properties: no
     // group/attack. Blueprint7 increments its giant crosses' parameters 0..5 and the flames carry
     // D_8013841C in their high byte (neither callback reads them).
-    return index >= 16 && index <= (bolt || trail || glass ? 47 : 31) &&
+    return index >= 16 && index <= (bolt || trail || glass || circle ? 47 : 31) &&
            SotnSubweaponEntity_Known(e->id) && c->kind == SubweaponEntity(e->id) && c->generation &&
            !c->bat_generation &&
            (cross   ? c->parameter <= 5
@@ -552,12 +557,14 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                                                  (!axe || e->axe.pose < 4)
                    : cross                 ? e->step == 1
                    : holy                  ? e->step >= 1 && e->step <= 3
+                   : watch                 ? e->step >= 1 && e->step <= 7
+                   : circle ? e->step == 1 && e->circle.timer >= 0 && e->circle.timer <= 30
                    : glass  ? e->step == 1 && e->glass.timer >= 1 && e->glass.timer <= 20
                    : flame  ? e->step == 1 && e->flame.timer >= 0x11 && e->flame.timer <= 0x50
                    : sparks ? e->step == 1 && e->sparks.timer >= 1 && e->sparks.timer <= 192
                             : e->step == 1 && e->timer && e->timer <= 0x80) &&
                       c->primitive_count == SotnSubweaponEntity_Rows(e->id) &&
-                      (bolt || trail || sparks || glass
+                      (bolt || trail || sparks || glass || watch || circle
                            ? !c->group && !c->state.subweapon.attack.active
                            : c->group >= 7 && c->group <= 10 &&
                                  c->state.subweapon.attack.equipment == 0)
@@ -597,6 +604,8 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
     PruneRoomFactory(r, SOTN_HOLY_WATER_BLUEPRINT);
     PruneRoomFactory(r, SOTN_HOLY_WATER_FLAME_BLUEPRINT);
     PruneRoomFactory(r, SOTN_HOLY_WATER_GLASS_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_STOPWATCH_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_STOPWATCH_CIRCLE_BLUEPRINT);
     r->subweapon_mask = 0;
     return true;
 }
@@ -2375,6 +2384,20 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
         if (r->children[i].kind == 38 && r->children[i].initialized &&
             !SotnPlayerCircle_Displace(&r->children[i].state.circle, x, y))
             return false;
+    // The stopwatch follows the shove while FLAG_POS_PLAYER_LOCKED. Its rows also have
+    // DRAW_UNK02, which takes precedence over DRAW_UNK_200, so they keep their room words.
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].subweapon && r->children[i].initialized &&
+            r->children[i].state.subweapon.motion.id == SOTN_SUBWEAPON_STOPWATCH &&
+            (r->children[i].state.subweapon.motion.flags & 0x00040000U))
+        {
+            SotnSubweaponEntity *e = &r->children[i].state.subweapon.motion;
+            const Uint32 bx = (Uint32)e->x + (Uint32)x, by = (Uint32)e->y + (Uint32)y;
+            SDL_memcpy(&e->x, &bx, sizeof(bx));
+            SDL_memcpy(&e->y, &by, sizeof(by));
+            r->children[i].source.x = e->x;
+            r->children[i].source.y = e->y;
+        }
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 39 && r->children[i].initialized)
         {
@@ -2522,17 +2545,20 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                           : c.kind == SOTN_HOLY_WATER_ENTITY       ? SOTN_SUBWEAPON_HOLY_WATER
                           : c.kind == SOTN_HOLY_WATER_FLAME_ENTITY ? SOTN_HOLY_WATER_FLAME
                           : c.kind == SOTN_HOLY_WATER_GLASS_ENTITY ? SOTN_HOLY_WATER_GLASS
+                          : c.kind == SOTN_STOPWATCH_ENTITY        ? SOTN_SUBWEAPON_STOPWATCH
+                          : c.kind == SOTN_STOPWATCH_CIRCLE_ENTITY ? SOTN_STOPWATCH_CIRCLE
                           : c.kind == SOTN_GIANT_CROSS_ENTITY      ? SOTN_GIANT_CROSS
                           : sparks                                 ? SOTN_CROSS_PARTICLES
                           : trail                                  ? SOTN_BIBLE_TRAIL
                                                                    : SOTN_AGUNEA_BOLT;
-        const bool glass = id == SOTN_HOLY_WATER_GLASS;
-        if (generation || child.slot < 32 || child.slot > (bolt || trail || glass ? 63 : 47) ||
+        const bool glass = id == SOTN_HOLY_WATER_GLASS, circle = id == SOTN_STOPWATCH_CIRCLE;
+        if (generation || child.slot < 32 ||
+            child.slot > (bolt || trail || glass || circle ? 63 : 47) ||
             (id == SOTN_GIANT_CROSS        ? child.parameter > 5
              : id == SOTN_HOLY_WATER_FLAME ? (child.parameter & 0xffU) != 0
                                            : child.parameter != 0) ||
             child.argument_low ||
-            child.argument_high != (bolt || trail || sparks || glass ? 0 : id) ||
+            child.argument_high != (bolt || trail || sparks || glass || circle ? 0 : id) ||
             (bolt && (subweapon_parent_slot < 32 || subweapon_parent_slot > 47)))
             return SDL_SetError("Subweapon lost its actual slot/parameter/subweapon id");
         c.state.subweapon.parent = subweapon_parent_slot;
@@ -6355,7 +6381,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .game_timer = in.game_timer,
                         .engine_timer = in.engine_timer,
                         .crash = definition.crash,
-                        .flame_counter = r.holy_counter},
+                        .flame_counter = r.holy_counter,
+                        .enemies_paused = in.stopwatch_paused},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
@@ -6386,6 +6413,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (events.attack_set)
                 c->state.subweapon.attack.active = events.attack_on;
             r.holy_counter += events.flame_counter_step ? 1U : 0U;
+            // g_unkGraphicsStruct.D_800973FC: the stopwatch's enemy freeze.
+            if (events.stopwatch_set)
+                r.stopwatch = true;
+            if (events.stopwatch_clear)
+                r.stopwatch = false;
             // A new factory has no FLAG_POS_CAMERA_LOCKED before its first update, so it keeps the
             // screen position its requester had during the callback.
             for (Uint16 k = 0; k < events.factories; ++k)

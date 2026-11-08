@@ -336,7 +336,8 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == SOTN_CROSS_ENTITY || kind == SOTN_GIANT_CROSS_ENTITY ||
            kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY ||
            kind == SOTN_AXE_ENTITY || kind == SOTN_HOLY_WATER_FLAME_ENTITY ||
-           kind == SOTN_HOLY_WATER_GLASS_ENTITY;
+           kind == SOTN_HOLY_WATER_GLASS_ENTITY || kind == SOTN_STOPWATCH_ENTITY ||
+           kind == SOTN_STOPWATCH_CIRCLE_ENTITY;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -657,6 +658,10 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     if (!next)
         return SDL_OutOfMemory();
     *next = *r;
+    // The Fairy's source search finds entity0x29 (the stopwatch) and clears D_800973FC.
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (next->children[i].kind == SOTN_STOPWATCH_ENTITY)
+            next->stopwatch = false;
     SDL_zero(next->factories);
     SDL_zero(next->children);
     SDL_zero(next->wolf.children);

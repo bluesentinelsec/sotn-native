@@ -2211,7 +2211,9 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             --next.stun;
             frozen = !(next.state.flags & 0x100000);
         }
-        if (SotnSubweapons_Frozen(actors->subweapons) && !(next.state.flags & (0x2000 | 0x100)))
+        // g_unkGraphicsStruct.D_800973FC: the shared runtime's live stopwatch.
+        if (actors->bat_runtime && actors->bat_runtime->stopwatch &&
+            !(next.state.flags & (0x2000 | 0x100)))
             frozen = frozen || !(next.state.flags & 0x200) || (actors->ticks & 3) != 0;
         if (!frozen && !next.state.unsupported && !Behavior(actors, &next, actors->player))
         {

@@ -2371,6 +2371,263 @@ static bool HolyRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// EntityStopWatch: pause refusal/cancel, birth, hover lerp, rise/settle, the five eighty-update
+// seconds with hops and digits, the exit, burst and retirement.
+static bool Stopwatch(SotnDataView executable)
+{
+    SotnSubweaponInput in = {.executable = executable,
+                             .properties = Roll,
+                             .context = &(Uint32){0},
+                             .screen_x = 20,
+                             .screen_y = 10,
+                             .player_priority = 148,
+                             .player_x = 120 * 65536,
+                             .player_y = 110 * 65536,
+                             .enemies_paused = true};
+    const SotnSubweaponEntity fresh = {
+        .x = 120 * 65536, .y = 110 * 65536, .id = SOTN_SUBWEAPON_STOPWATCH};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 11;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && ev.stopwatch_clear &&
+          !ev.stopwatch_set && !ev.factories);
+    in.enemies_paused = false;
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && !ev.stopwatch_set);
+    in.allocated = true;
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && e.flags == 0x0c860000U &&
+          ev.stopwatch_set && !ev.stopwatch_clear && ev.factories == 1 &&
+          ev.factory_packed[0] == SOTN_STOPWATCH_CIRCLE_BLUEPRINT && ev.factory_x == fresh.x &&
+          ev.sound == 0x6ad && e.stopwatch.palette0 == 0x17f && e.stopwatch.priority[0] == 149 &&
+          e.stopwatch.priority[1] == 151 && e.stopwatch.draw_mode[0] == 0x30a &&
+          e.stopwatch.u[0][0] == 0xa8 && e.stopwatch.u[0][1] == 0x98 &&
+          e.stopwatch.v[0][2] == 0xd8 && random == 11);
+    // The hover point is eight pixels behind and sixteen above; X closes a twelfth a update.
+    CHECK(e.x == fresh.x + (-8 * 65536) / 12 && e.y == fresh.y + (-16 * 65536) / 4 &&
+          e.stopwatch.scale == 4 && e.stopwatch.angle == 0x80);
+    {
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig(executable, 0x80, &t));
+        const Sint32 x = Whole(e.x) - 6, y = Whole(e.y), ox = 4 * 8 / 100, oy = 4 * 12 / 100;
+        CHECK(e.stopwatch.x[0][0] == x + Floor(t.cosine * -ox - t.sine * -oy, 12) &&
+              e.stopwatch.y[0][3] == y + Floor(t.sine * ox + t.cosine * oy, 12));
+    }
+    Uint16 rise = 0;
+    while (e.step == 1 && rise < 40)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !(e.stopwatch.draw_mode[0] & 8U));
+        ++rise;
+    }
+    CHECK(rise == 18 && e.stopwatch.height == 18 * 0x18000);
+    {
+        // Fully grown: the dial spans (+-8, +-12) about its tilt.
+        SotnMathTrig t = {0};
+        CHECK(e.stopwatch.scale == 76 && SotnMath_Trig(executable, e.stopwatch.angle, &t));
+        const Sint32 x = Whole(e.x) - 6, y = Whole(e.y) - Floor(e.stopwatch.height, 16),
+                     ox = 76 * 8 / 100, oy = 76 * 12 / 100;
+        const Sint32 sx[4] = {-ox, ox, -ox, ox}, sy[4] = {-oy, -oy, oy, oy};
+        for (Uint16 v = 0; v < 4; ++v)
+            CHECK(e.stopwatch.x[0][v] == x + Floor(t.cosine * sx[v] - t.sine * sy[v], 12) &&
+                  e.stopwatch.y[0][v] == y + Floor(t.sine * sx[v] + t.cosine * sy[v], 12));
+    }
+    Uint16 settle = 0;
+    while (e.step == 2 && settle < 40)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        ++settle;
+    }
+    CHECK(settle == 11 && e.stopwatch.t == 5 && ev.sound == 0x6a1 &&
+          (e.stopwatch.draw_mode[1] & 8U) && e.stopwatch.height > 0x100000 &&
+          e.stopwatch.velocity > 0);
+    // Seconds: eighty-one updates each; a hop rolls two rand calls whenever it lands.
+    Uint32 expected = random;
+    Sint16 seen[6] = {0};
+    Uint16 hops = 0, ticks = 0;
+    for (Uint16 tick = 0; tick < 600 && e.step == 3; ++tick)
+    {
+        const SotnSubweaponEntity before = e;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        const bool second = before.stopwatch.tick + 1 > 80;
+        ticks += second;
+        if (second)
+            CHECK(ev.sound == 0x6a1 && !e.stopwatch.tick &&
+                  e.stopwatch.t == before.stopwatch.t - 1);
+        if (e.step != 3)
+            break;
+        if (before.stopwatch.height <= 0x100000)
+        {
+            const Sint32 v = second || before.stopwatch.bounce
+                                 ? (Sint32)((SotnCombat_Random(&expected) % 64 + 0x200) << 8)
+                                 : (Sint32)((SotnCombat_Random(&expected) % 128 + 0x100) << 8);
+            const Sint16 a = before.stopwatch.angle >= 0
+                                 ? (Sint16) - (Sint32)(SotnCombat_Random(&expected) % 64 + 0x40)
+                                 : (Sint16)(SotnCombat_Random(&expected) % 64 + 0x40);
+            CHECK(e.stopwatch.velocity == v - 0x4000 && e.stopwatch.angle == a &&
+                  !e.stopwatch.bounce);
+            ++hops;
+        }
+        CHECK(random == expected && (e.stopwatch.t < 5 || (e.stopwatch.draw_mode[1] & 8U)));
+        if (e.stopwatch.t < 5 && e.stopwatch.t >= 0)
+        {
+            const Uint8 u = (Uint8)(e.stopwatch.t ? e.stopwatch.t * 8 + 0x18 : 0x68);
+            CHECK(e.stopwatch.u[1][0] == u && e.stopwatch.u[1][1] == u + 6 &&
+                  e.stopwatch.u[1][2] == u && e.stopwatch.u[1][3] == u + 6 &&
+                  e.stopwatch.v[1][2] == 0x49 && !(e.stopwatch.draw_mode[1] & 8U) &&
+                  (e.stopwatch.draw_mode[2] & 8U));
+            seen[e.stopwatch.t] = 1;
+            const Sint32 x = Whole(e.x) + 4, y = Whole(e.y) - 14, k = e.stopwatch.tick;
+            if (k >= 8 && k < 0x48)
+                CHECK(e.stopwatch.x[1][0] == x - 5 && e.stopwatch.x[1][1] == x + 5 &&
+                      e.stopwatch.y[1][0] == y - 8 && e.stopwatch.y[1][2] == y + 8);
+            else if (k >= 0x48)
+                CHECK(e.stopwatch.x[1][0] == x - (0x50 - k) / 2 &&
+                      e.stopwatch.y[1][0] == y - 8 - (k - 0x48));
+            else
+                CHECK(e.stopwatch.x[1][0] == x - k / 2 && e.stopwatch.y[1][0] == y - 8 - (7 - k));
+        }
+    }
+    CHECK(e.step == 4 && ticks == 6 && hops > 20 && seen[0] && seen[4]);
+    // Exit: unlock, re-anchor above the dial, then the burst four and fifteen updates later.
+    const SotnSubweaponEntity exiting = e;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 5 &&
+          !(e.flags & 0x00040000U) && e.stopwatch.priority[0] == 0xc2 &&
+          e.stopwatch.draw_mode[0] == 0x102 && (e.stopwatch.draw_mode[1] & 8U) &&
+          Whole(e.x) == Whole(exiting.x) - 6 &&
+          Whole(e.y) == Whole(exiting.y) - Floor(exiting.stopwatch.height, 16) &&
+          e.stopwatch.x[0][0] == Whole(e.x) - 8 && e.stopwatch.y[0][0] == Whole(e.y) - 12);
+    for (Uint16 i = 1; i <= 4; ++i)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == (i < 4 ? 5 : 6));
+    CHECK(ev.sound == 0x6a4 && e.stopwatch.palette0 == 0x15f && (e.stopwatch.draw_mode[0] & 4U) &&
+          e.stopwatch.x[0][0] == Whole(e.x) - 4 && e.stopwatch.y[0][0] == Whole(e.y) - 0x80);
+    Uint16 burst = 0;
+    while (e.step == 6 && burst < 20)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        ++burst;
+    }
+    CHECK(burst == 11 && ev.factories == 1 && ev.factory_packed[0] == SOTN_STOPWATCH_BURST &&
+          ev.factory_x == e.x && e.stopwatch.x[0][0] == Whole(e.x) - 1);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && ev.stopwatch_clear);
+    // A pause while hovering jumps to the exit and clears the freeze every update.
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+          SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    in.enemies_paused = true;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 5 && ev.stopwatch_clear);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 5 && ev.stopwatch_clear);
+    // A pause while counting down also jumps to the exit.
+    in.enemies_paused = false;
+    e = fresh;
+    for (Uint16 i = 0; i < 40 && e.step != 3; ++i)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    in.enemies_paused = true;
+    CHECK(e.step == 3 && SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 5);
+    // Facing follows the player once the watch has crossed behind.
+    in.enemies_paused = false;
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.facing_left);
+    in.player_facing_left = true;
+    for (Uint16 i = 0; i < 30 && !e.facing_left; ++i)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    CHECK(e.facing_left && e.stopwatch.u[0][0] == 0x98 && e.stopwatch.u[0][1] == 0xa8);
+    return true;
+}
+// EntityStopWatchExpandingCircle: UVs, growth by 0x18 and the thirty-update life.
+static bool StopwatchCircle(SotnDataView executable)
+{
+    SotnSubweaponInput in = {
+        .executable = executable, .screen_x = 20, .screen_y = 10, .allocated = true};
+    SotnSubweaponEntity e = {.x = 120 * 65536, .y = 90 * 65536, .id = SOTN_STOPWATCH_CIRCLE};
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 1;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && e.flags == 0x0c820000U &&
+          e.priority == 0xc2 && e.circle.size == 0x20);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnMathTrig a = {0}, b = {0};
+        CHECK(SotnMath_Trig(executable, i << 8, &a) && SotnMath_Trig(executable, (i + 1) << 8, &b));
+        CHECK(e.circle.u[i][0] == (Uint8)(Floor(a.sine * 32, 12) + 0x20) &&
+              e.circle.v[i][1] == (Uint8)(-Floor(b.cosine * 32, 12) + 0xdf) &&
+              e.circle.x[i][0] == 100 + Floor(a.sine * 0x20, 12) &&
+              e.circle.y[i][1] == 80 - Floor(b.cosine * 0x20, 12) && e.circle.x[i][2] == 100 &&
+              e.circle.y[i][3] == 80);
+    }
+    for (Uint16 tick = 1; tick <= 30; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed &&
+              e.circle.size == 0x20 + tick * 0x18 && e.circle.timer == tick);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == 1);
+    return true;
+}
+// The stopwatch through the shared runtime: blueprint71, the freeze flag, its circle (blueprint75),
+// shoves while player-locked, the pause gate and the Fairy cleanup's flag clear.
+static bool StopwatchRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    Uint8 *def = dra + 0x4a00 + SOTN_SUBWEAPON_STOPWATCH * 20U;
+    def[2] = 20;
+    def[6] = 1;
+    def[10] = 0xb8;
+    def[11] = SOTN_STOPWATCH_BLUEPRINT;
+    const Uint8 blueprints[2][7] = {{71, 41, 1, 0xc1, 0, 0x02, 0}, {75, 42, 1, 0xc1, 0, 0x00, 0}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 6);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .player = {.hp = 70, .x = 120 * 65536, .y = 110 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 120 * 65536, .y = 110 * 65536, .priority = 148},
+              SOTN_STOPWATCH_BLUEPRINT, SOTN_SUBWEAPON_STOPWATCH << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *w = &r->children[16];
+    CHECK(w->subweapon && w->initialized && w->kind == SOTN_STOPWATCH_ENTITY &&
+          w->primitive_count == 3 && !w->group && !w->state.subweapon.attack.active &&
+          r->stopwatch && SotnBatRuntime_SubweaponValid(w, 16) &&
+          SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_STOPWATCH) == 1 && r->sound_count == 1 &&
+          r->sounds[0] == 0x6ad);
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *c = &r->children[47];
+    CHECK(c->kind == SOTN_STOPWATCH_CIRCLE_ENTITY && c->initialized && c->primitive_count == 16 &&
+          !c->group && SotnBatRuntime_SubweaponValid(c, 47) && r->stopwatch);
+    // A post-stage shove moves the player-locked watch.
+    const Sint32 x = w->state.subweapon.motion.x;
+    CHECK(SotnBatRuntime_PlayerShove(r, 3 * 65536, 0) &&
+          w->state.subweapon.motion.x == x + 3 * 65536);
+    // Room entry keeps both (FLAG_UNK_20000).
+    CHECK(SotnBatRuntime_PruneSubweapons(r) && w->kind == SOTN_STOPWATCH_ENTITY &&
+          c->kind == SOTN_STOPWATCH_CIRCLE_ENTITY);
+    // pauseEnemies clears the freeze and sends the watch to its exit.
+    in.stopwatch_paused = true;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          !r->stopwatch && w->state.subweapon.motion.step == 5);
+    // The Fairy cleanup clears a freeze while a watch lives.
+    r->stopwatch = true;
+    CHECK(SotnActors_ClearPlayerRuntime(actors, r) && !r->stopwatch && !w->kind);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -2416,7 +2673,9 @@ int main(void)
         DaggerRuntime((SotnDataView){bytes, 0x23212}) && Axe((SotnDataView){bytes, 0x23212}) &&
         AxeRuntime((SotnDataView){bytes, 0x23212}) && HolyWater((SotnDataView){bytes, 0x23212}) &&
         HolyGlass() && HolyFlame((SotnDataView){bytes, 0x23212}) &&
-        HolyRuntime((SotnDataView){bytes, 0x23212});
+        HolyRuntime((SotnDataView){bytes, 0x23212}) && Stopwatch((SotnDataView){bytes, 0x23212}) &&
+        StopwatchCircle((SotnDataView){bytes, 0x23212}) &&
+        StopwatchRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;
@@ -2433,6 +2692,8 @@ int main(void)
         "wall and guard bounces/enemy hold/spin/fade, runtime rows/tink factory/prune; axe "
         "facing/lift/swish volume/gravity/retirement/bounce/afterimages, runtime rows/volume/"
         "room retention; holy water landing/wall/break/flame factories, glass rolls/fall, flame "
-        "rolls/wave/hitbox/fade, runtime rowless bottle/glass/flames/smoke");
+        "rolls/wave/hitbox/fade, runtime rowless bottle/glass/flames/smoke; stopwatch pause/"
+        "birth/hover/rise/seconds/hops/digits/exit/burst, circle growth, runtime freeze flag/"
+        "circle/shove/room retention/pause/Fairy clear");
     return 0;
 }
