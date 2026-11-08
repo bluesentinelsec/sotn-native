@@ -444,7 +444,8 @@ static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint);
 bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                      Uint32 packed, Sint16 argument, bool *allocated)
 {
-    // The dagger's blueprint3, the axe's blueprint9, Vibhuti's blueprint26, Rebound Stone's
+    // The dagger's blueprint3, the axe's blueprint9, holy water's blueprint27, Vibhuti's
+    // blueprint26, Rebound Stone's
     // blueprint24, Agunea's blueprint22, the Bible's blueprint77 and the cross's blueprint6
     // factories are owned here.
     if (!r || !allocated ||
@@ -455,7 +456,8 @@ bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource 
           (packed == SOTN_BIBLE_BLUEPRINT && argument == SOTN_SUBWEAPON_BIBLE << 9) ||
           (packed == SOTN_CROSS_BLUEPRINT && argument == SOTN_SUBWEAPON_CROSS << 9) ||
           (packed == SOTN_DAGGER_BLUEPRINT && argument == SOTN_SUBWEAPON_DAGGER << 9) ||
-          (packed == SOTN_AXE_BLUEPRINT && argument == SOTN_SUBWEAPON_AXE << 9)))
+          (packed == SOTN_AXE_BLUEPRINT && argument == SOTN_SUBWEAPON_AXE << 9) ||
+          (packed == SOTN_HOLY_WATER_BLUEPRINT && argument == SOTN_SUBWEAPON_HOLY_WATER << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -485,6 +487,9 @@ static Uint16 SubweaponEntity(Uint16 id)
            : id == SOTN_CROSS_PARTICLES         ? SOTN_CROSS_PARTICLES_ENTITY
            : id == SOTN_SUBWEAPON_DAGGER        ? SOTN_DAGGER_ENTITY
            : id == SOTN_SUBWEAPON_AXE           ? SOTN_AXE_ENTITY
+           : id == SOTN_SUBWEAPON_HOLY_WATER    ? SOTN_HOLY_WATER_ENTITY
+           : id == SOTN_HOLY_WATER_FLAME        ? SOTN_HOLY_WATER_FLAME_ENTITY
+           : id == SOTN_HOLY_WATER_GLASS        ? SOTN_HOLY_WATER_GLASS_ENTITY
                                                 : 0;
 }
 static bool SubweaponKind(Uint16 kind)
@@ -494,7 +499,8 @@ static bool SubweaponKind(Uint16 kind)
            kind == SOTN_BIBLE_ENTITY || kind == SOTN_BIBLE_TRAIL_ENTITY ||
            kind == SOTN_CROSS_ENTITY || kind == SOTN_GIANT_CROSS_ENTITY ||
            kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY ||
-           kind == SOTN_AXE_ENTITY;
+           kind == SOTN_AXE_ENTITY || kind == SOTN_HOLY_WATER_ENTITY ||
+           kind == SOTN_HOLY_WATER_FLAME_ENTITY || kind == SOTN_HOLY_WATER_GLASS_ENTITY;
 }
 // The Bible, its trail and the cross's three entities have neither FLAG_POS_CAMERA_LOCKED nor
 // DRAW_UNK02 rows: they keep their screen position as the camera moves. FLAG_UNK_20000 keeps the
@@ -514,13 +520,18 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                bible = e->id == SOTN_SUBWEAPON_BIBLE, trail = e->id == SOTN_BIBLE_TRAIL,
                beam = e->id == SOTN_SUBWEAPON_CROSS, cross = e->id == SOTN_GIANT_CROSS,
                sparks = e->id == SOTN_CROSS_PARTICLES, dagger = e->id == SOTN_SUBWEAPON_DAGGER,
-               axe = e->id == SOTN_SUBWEAPON_AXE;
-    // The lightning, Bible trail and cross particles never roll properties: no group/attack.
-    // Blueprint7 increments its giant crosses' parameters 0..5 (unused by their callback).
-    return index >= 16 && index <= (bolt || trail ? 47 : 31) && SotnSubweaponEntity_Rows(e->id) &&
-           c->kind == SubweaponEntity(e->id) && c->generation && !c->bat_generation &&
-           (cross ? c->parameter <= 5 : !c->parameter) && !c->draw_count && !e->removed &&
-           c->state.subweapon.hit_flags <= 3 &&
+               axe = e->id == SOTN_SUBWEAPON_AXE, holy = e->id == SOTN_SUBWEAPON_HOLY_WATER,
+               glass = e->id == SOTN_HOLY_WATER_GLASS, flame = e->id == SOTN_HOLY_WATER_FLAME;
+    // The lightning, Bible trail, cross particles and holy water glass never roll properties: no
+    // group/attack. Blueprint7 increments its giant crosses' parameters 0..5 and the flames carry
+    // D_8013841C in their high byte (neither callback reads them).
+    return index >= 16 && index <= (bolt || trail || glass ? 47 : 31) &&
+           SotnSubweaponEntity_Known(e->id) && c->kind == SubweaponEntity(e->id) && c->generation &&
+           !c->bat_generation &&
+           (cross   ? c->parameter <= 5
+            : flame ? !(c->parameter & 0xffU)
+                    : !c->parameter) &&
+           !c->draw_count && !e->removed && c->state.subweapon.hit_flags <= 3 &&
            c->state.subweapon.hit_target < SOTN_STAGE_TARGETS &&
            (bolt ? c->state.subweapon.parent >= 32 && c->state.subweapon.parent <= 47
                  : !c->state.subweapon.parent) &&
@@ -540,12 +551,16 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                                                                       : 2) &&
                                                  (!axe || e->axe.pose < 4)
                    : cross                 ? e->step == 1
+                   : holy                  ? e->step >= 1 && e->step <= 3
+                   : glass  ? e->step == 1 && e->glass.timer >= 1 && e->glass.timer <= 20
+                   : flame  ? e->step == 1 && e->flame.timer >= 0x11 && e->flame.timer <= 0x50
                    : sparks ? e->step == 1 && e->sparks.timer >= 1 && e->sparks.timer <= 192
                             : e->step == 1 && e->timer && e->timer <= 0x80) &&
                       c->primitive_count == SotnSubweaponEntity_Rows(e->id) &&
-                      (bolt || trail || sparks ? !c->group && !c->state.subweapon.attack.active
-                                               : c->group >= 7 && c->group <= 10 &&
-                                                     c->state.subweapon.attack.equipment == 0)
+                      (bolt || trail || sparks || glass
+                           ? !c->group && !c->state.subweapon.attack.active
+                           : c->group >= 7 && c->group <= 10 &&
+                                 c->state.subweapon.attack.equipment == 0)
                 : !e->step && !c->primitive_count && !c->group &&
                       !c->state.subweapon.attack.active);
 }
@@ -579,6 +594,9 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
     PruneRoomFactory(r, SOTN_CROSS_PARTICLES_BLUEPRINT);
     PruneRoomFactory(r, SOTN_DAGGER_BLUEPRINT);
     PruneRoomFactory(r, SOTN_AXE_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_HOLY_WATER_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_HOLY_WATER_FLAME_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_HOLY_WATER_GLASS_BLUEPRINT);
     r->subweapon_mask = 0;
     return true;
 }
@@ -2494,20 +2512,27 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         const bool bolt = c.kind == SOTN_AGUNEA_BOLT_ENTITY,
                    trail = c.kind == SOTN_BIBLE_TRAIL_ENTITY,
                    sparks = c.kind == SOTN_CROSS_PARTICLES_ENTITY;
-        const Uint16 id = c.kind == SOTN_VIBHUTI_ENTITY         ? SOTN_SUBWEAPON_VIBHUTI
-                          : c.kind == SOTN_REBOUND_STONE_ENTITY ? SOTN_SUBWEAPON_REBOUND_STONE
-                          : c.kind == SOTN_AGUNEA_ENTITY        ? SOTN_SUBWEAPON_AGUNEA
-                          : c.kind == SOTN_BIBLE_ENTITY         ? SOTN_SUBWEAPON_BIBLE
-                          : c.kind == SOTN_CROSS_ENTITY         ? SOTN_SUBWEAPON_CROSS
-                          : c.kind == SOTN_DAGGER_ENTITY        ? SOTN_SUBWEAPON_DAGGER
-                          : c.kind == SOTN_AXE_ENTITY           ? SOTN_SUBWEAPON_AXE
-                          : c.kind == SOTN_GIANT_CROSS_ENTITY   ? SOTN_GIANT_CROSS
-                          : sparks                              ? SOTN_CROSS_PARTICLES
-                          : trail                               ? SOTN_BIBLE_TRAIL
-                                                                : SOTN_AGUNEA_BOLT;
-        if (generation || child.slot < 32 || child.slot > (bolt || trail ? 63 : 47) ||
-            (id == SOTN_GIANT_CROSS ? child.parameter > 5 : child.parameter != 0) ||
-            child.argument_low || child.argument_high != (bolt || trail || sparks ? 0 : id) ||
+        const Uint16 id = c.kind == SOTN_VIBHUTI_ENTITY            ? SOTN_SUBWEAPON_VIBHUTI
+                          : c.kind == SOTN_REBOUND_STONE_ENTITY    ? SOTN_SUBWEAPON_REBOUND_STONE
+                          : c.kind == SOTN_AGUNEA_ENTITY           ? SOTN_SUBWEAPON_AGUNEA
+                          : c.kind == SOTN_BIBLE_ENTITY            ? SOTN_SUBWEAPON_BIBLE
+                          : c.kind == SOTN_CROSS_ENTITY            ? SOTN_SUBWEAPON_CROSS
+                          : c.kind == SOTN_DAGGER_ENTITY           ? SOTN_SUBWEAPON_DAGGER
+                          : c.kind == SOTN_AXE_ENTITY              ? SOTN_SUBWEAPON_AXE
+                          : c.kind == SOTN_HOLY_WATER_ENTITY       ? SOTN_SUBWEAPON_HOLY_WATER
+                          : c.kind == SOTN_HOLY_WATER_FLAME_ENTITY ? SOTN_HOLY_WATER_FLAME
+                          : c.kind == SOTN_HOLY_WATER_GLASS_ENTITY ? SOTN_HOLY_WATER_GLASS
+                          : c.kind == SOTN_GIANT_CROSS_ENTITY      ? SOTN_GIANT_CROSS
+                          : sparks                                 ? SOTN_CROSS_PARTICLES
+                          : trail                                  ? SOTN_BIBLE_TRAIL
+                                                                   : SOTN_AGUNEA_BOLT;
+        const bool glass = id == SOTN_HOLY_WATER_GLASS;
+        if (generation || child.slot < 32 || child.slot > (bolt || trail || glass ? 63 : 47) ||
+            (id == SOTN_GIANT_CROSS        ? child.parameter > 5
+             : id == SOTN_HOLY_WATER_FLAME ? (child.parameter & 0xffU) != 0
+                                           : child.parameter != 0) ||
+            child.argument_low ||
+            child.argument_high != (bolt || trail || sparks || glass ? 0 : id) ||
             (bolt && (subweapon_parent_slot < 32 || subweapon_parent_slot > 47)))
             return SDL_SetError("Subweapon lost its actual slot/parameter/subweapon id");
         c.state.subweapon.parent = subweapon_parent_slot;
@@ -6275,7 +6300,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnSubweaponEntity *e = &c->state.subweapon.motion;
             const Uint16 rows = SotnSubweaponEntity_Rows(e->id);
             bool allocated = c->primitive_count != 0;
-            if (!e->step)
+            if (!e->step && !rows)
+                allocated = true; // The holy water bottle is a sprite without rows.
+            else if (!e->step)
             {
                 if (!(e->id == SOTN_SUBWEAPON_VIBHUTI || e->id == SOTN_GIANT_CROSS
                           ? SotnPrimitiveSlots_ReserveContiguous(&in.primitive_slots, rows,
@@ -6293,7 +6320,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SubweaponPropertyContext properties = {&r, c,    in.dra, &progress, stats.total[2],
                                                    i,  false};
             SotnSubweaponDefinition definition = {0};
-            if (e->id == SOTN_SUBWEAPON_CROSS && !e->step &&
+            if ((e->id == SOTN_SUBWEAPON_CROSS || e->id == SOTN_SUBWEAPON_HOLY_WATER) && !e->step &&
                 !SotnSubweapon_Read(in.dra, e->id, &definition))
                 return false;
             SotnSubweaponEvents events = {0};
@@ -6327,7 +6354,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .parent_y = agunea_parent ? Pixel(parent->state.subweapon.motion.y) : 0,
                         .game_timer = in.game_timer,
                         .engine_timer = in.engine_timer,
-                        .crash = definition.crash},
+                        .crash = definition.crash,
+                        .flame_counter = r.holy_counter},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
@@ -6354,6 +6382,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.use_ticks = events.use_ticks;
             if (events.disable_attack)
                 c->state.subweapon.attack.active = false;
+            // The flame's hitboxState alternates 0/2 over its live attack.
+            if (events.attack_set)
+                c->state.subweapon.attack.active = events.attack_on;
+            r.holy_counter += events.flame_counter_step ? 1U : 0U;
             // A new factory has no FLAG_POS_CAMERA_LOCKED before its first update, so it keeps the
             // screen position its requester had during the callback.
             for (Uint16 k = 0; k < events.factories; ++k)
@@ -6969,10 +7001,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             c->primitive_count = allocated ? (Uint8)count : 0;
             SotnPlayerFactorySource source = c->source;
-            const bool fire = (c->parameter >> 8) == 4 || (c->parameter >> 8) == 11;
+            // Behaviour3 profiles 4/11 read their parent's velocity at birth; the holy water
+            // flame's profile7 smoke has a parent whose velocity is always zero.
+            const bool fire = (c->parameter >> 8) == 4 || (c->parameter >> 8) == 11,
+                       rising = fire || (c->parameter >> 8) == 7;
             const bool sire = (c->parameter >> 8) == 12;
-            const Sint16 dx = fire || sire ? Word(in.screen_shift_x - in.room_shift_x) : 0,
-                         dy = fire || sire ? Word(in.screen_shift_y - in.room_shift_y) : 0;
+            const Sint16 dx = rising || sire ? Word(in.screen_shift_x - in.room_shift_x) : 0,
+                         dy = rising || sire ? Word(in.screen_shift_y - in.room_shift_y) : 0;
             const Sint16 camera_x = Word((Sint32)in.camera_x + dx),
                          camera_y = Word((Sint32)in.camera_y + dy);
             source.x = FixedShift(source.x, Word(-camera_x));
@@ -7011,7 +7046,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             const Sint32 x = Pixel(c->source.x) - camera_x, y = Pixel(c->source.y) - camera_y;
             removed = c->state.particles.removed || (!(c->state.particles.flags & 0x04000000U) &&
                                                      (x < -32 || x > 288 || y < -16 || y > 256));
-            if (!removed && fire && !SotnPlayerParticles_Rebase(&c->state.particles, dx, dy))
+            if (!removed && rising && !SotnPlayerParticles_Rebase(&c->state.particles, dx, dy))
                 return false;
             if (sire)
             {
