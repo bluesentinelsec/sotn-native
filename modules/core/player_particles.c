@@ -108,9 +108,12 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
     SotnPlayerParticles next = *particles;
     Uint32 rng = *random;
     const Uint16 type = in.parameter >> 8;
+    // Evaluated once: GCC 13 Release (-O3) mis-branched the birth chain when this predicate was
+    // inlined into it (profile0 tinks took the generic branch).
+    const bool rising = Rising(type);
     if (VectorProfile(type) && next.phase && (!next.lifetime || next.lifetime > 47))
         return SDL_SetError("Vector particles lost their actual bounded lifetime");
-    if (Rising(type) && next.phase && (!next.lifetime || next.lifetime > 31))
+    if (rising && next.phase && (!next.lifetime || next.lifetime > 31))
         return SDL_SetError("Fire particles lost their actual bounded lifetime");
     if (!next.phase)
     {
@@ -131,7 +134,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         next.lifetime = type == 13                              ? 256
                         : type == 8 || type == 10 || type == 12 ? 63
                         : type == 3                             ? 47
-                        : Rising(type)                          ? 31
+                        : rising                                ? 31
                         : VectorProfile(type)                   ? 47
                                                                 : 0;
         for (Uint16 i = 0; i < next.count; ++i)
@@ -161,7 +164,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
                 t->screen_x = Pixel(t->x);
                 t->screen_y = Pixel(t->y);
             }
-            else if (Rising(type))
+            else if (rising)
             {
                 t->x =
                     Word(Pixel(in.source.x) + (Sint32)(SotnCombat_Random(&rng) & 15U) - 7) * 65536;
@@ -238,7 +241,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         goto done;
     }
     // Original cases3/4/8/10/11/12/13 fall through into the second lifetime decrement.
-    if ((type == 3 || Rising(type) || type == 8 || type == 10 || type == 12 || type == 13) &&
+    if ((type == 3 || rising || type == 8 || type == 10 || type == 12 || type == 13) &&
         (!next.lifetime || --next.lifetime == 0 || --next.lifetime == 0))
     {
         next.removed = true;
@@ -280,7 +283,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
             t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
             t->velocity_y = Fixed((Uint32)t->velocity_y + 5120U);
         }
-        else if (Rising(type) || type == 10 || type == 12)
+        else if (rising || type == 10 || type == 12)
         {
             t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
             t->timer = (Uint16)Word((Sint32)t->timer - 1);
