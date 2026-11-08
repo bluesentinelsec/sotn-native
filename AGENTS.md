@@ -252,8 +252,14 @@ follow/bob/pulse, FindValidTarget (48px in front, shielded targets at levels1..3
 round-robin cursor), the approach and attack (ring 0xDA at delay-30, GetServantStats spell17,
 spell18 soul steal from level70, one-update 8x8 hitbox), confusion while bat/Axe Armor (0xDB
 question marks at 0x801705A8 offsets, rise, park), the spike-room event (0xDF15) and DRA
-UpdateAnim. Child links are raw slots; CreateChildEntity's full-slot NULL never matches. Not yet
-loaded, ticked, drawn, offered by the relic menu or connected to combat.
+UpdateAnim. Child links are raw slots; CreateChildEntity's full-slot NULL never matches. The
+session loads it through the familiar profile (bank20 parts 0x80170040; ServantInit's CLUT replaces
+the raw upload before commit), ticks slots4..7 with real row leases (0xA000|slot namespace,
+SotnActors_CommitGhostRows), translates, draws (palette0x140, unk5A 0x6C, opacity + additive) and
+the relic menu switches card19. GetServantStats (SotnBatRuntime_ServantAttack: one rand, level
+scale, least-used group3..6 counted until the slot17..47 recount) arms bat_runtime.servant, a
+slot4 combat channel checked before slots16+, live exactly one hit detection (cleared by the next
+slot4 callback, death, room entry, ServantInit, deselection); spell18's effect2 makes soul orbs.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
@@ -2191,7 +2197,7 @@ now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
 Zoe, Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist, Gas Cloud and
-the Sword Card (other cards off; menu close loads the familiar). Preserve found bits, US cursor
+the Ghost/Sword Cards (other cards off; menu close loads the familiar). Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
 Other abilities and familiar cards remain unavailable; never grant ownership or reset
 transient movement/MP when switching. Version-nine saves retain disabled relics.

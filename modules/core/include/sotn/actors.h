@@ -8,6 +8,7 @@
 #include <sotn/dialogue.h>
 #include <sotn/fairy_effects.h>
 #include <sotn/gas_cloud.h>
+#include <sotn/ghost_familiar.h>
 #include <sotn/palette.h>
 #include <sotn/player.h>
 #include <sotn/primitive_slots.h>
@@ -218,6 +219,16 @@ bool SotnActors_CommitSwordRows(SotnActors *actors, SotnSwordLease leases[3],
 /** @brief Check one real leased Sword row before drawing its retained component packet.
  * @return Success or SDL error for stale generation, invalid index or a mismatching row. */
 bool SotnActors_SwordRow(const SotnActors *actors, const SotnSwordLease *lease, Uint16 index);
+/** @brief Reconcile the Ghost familiar's slot5..7 row leases with its live children.
+ * @param actors Actual stage pool. @param leases Actual committed leases (index slot minus5),
+ * updated on success. @param wanted SotnGhostRuntime_Leases output (rows ignored).
+ * Same contract as SotnActors_CommitSwordRows, in its own 0xA000|slot namespace.
+ * @return Success or SDL error preserving pool and leases. */
+bool SotnActors_CommitGhostRows(SotnActors *actors, SotnGhostLease leases[3],
+                                const SotnGhostLease wanted[3]);
+/** @brief Check one real leased Ghost row before drawing its retained component packet.
+ * @return Success or SDL error for stale generation, invalid index or a mismatching row. */
+bool SotnActors_GhostRow(const SotnActors *actors, const SotnGhostLease *lease, Uint16 index);
 /** @brief Count free real rows for an original AllocPrimitives request (no mutation). */
 bool SotnActors_FreeRows(const SotnActors *actors, Uint16 count, bool *available);
 /** @brief Commit a familiar target search's FLAG_UNK_80000 mark on stage slot0..127.

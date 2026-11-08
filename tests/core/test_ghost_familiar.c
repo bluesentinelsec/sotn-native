@@ -1,3 +1,4 @@
+#include "actors_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/game_math.h>
 #include <sotn/ghost_familiar.h>
@@ -361,10 +362,77 @@ static bool Lifecycle(void)
     CHECK(SotnGhostRuntime_Clear(&r) && !r.slots[0].identity && r.initialized);
     return true;
 }
+// The session's real stage-pool leases for the ring/question-mark children.
+static bool Leases(void)
+{
+    SotnActors *a = SDL_calloc(1, sizeof(*a)), *copy = SDL_malloc(sizeof(*copy));
+    CHECK(a && copy);
+    SotnGhostLease leases[3] = {0}, want[3] = {0}, saved[3] = {0};
+    want[0] = (SotnGhostLease){.generation = 11, .slot = 5, .count = SOTN_GHOST_CLOUD_ROWS};
+    want[2] = (SotnGhostLease){.generation = 12, .slot = 7, .count = SOTN_GHOST_CONFUSED_ROWS};
+    // Stage rows and a Sword row stay owned by others.
+    a->primitives[0] = (ActorPrimitive){.owner = 7};
+    a->primitives[2] = (ActorPrimitive){.owner = 9, .ability_kind = 0x9004};
+    CHECK(SotnActors_CommitGhostRows(a, leases, want));
+    CHECK(leases[0].rows[0] == 1 && leases[0].rows[1] == 3 && leases[0].rows[7] == 9 &&
+          leases[2].rows[0] == 10 && leases[2].rows[2] == 12 && !leases[1].count &&
+          a->primitives[1].owner == 11 && a->primitives[1].ability_kind == 0xa005 &&
+          a->primitives[12].ability_kind == 0xa007 && a->primitives[2].ability_kind == 0x9004);
+    CHECK(SotnActors_GhostRow(a, &leases[0], 7) && !SotnActors_GhostRow(a, &leases[0], 8) &&
+          SotnActors_GhostRow(a, &leases[2], 2) && !SotnActors_GhostRow(a, &leases[2], 3));
+    // An unchanged owner keeps its rows; a new ring generation takes the first free rows.
+    const SotnGhostLease kept = leases[2];
+    want[0].generation = 13;
+    CHECK(SotnActors_CommitGhostRows(a, leases, want));
+    CHECK(!SDL_memcmp(&kept, &leases[2], sizeof(kept)) && leases[0].rows[0] == 1 &&
+          leases[0].generation == 13 && a->primitives[9].owner == 13);
+    // Stale or unclaimed rows fail before any change.
+    SDL_memcpy(saved, leases, sizeof(saved));
+    a->primitives[leases[2].rows[1]].owner ^= 1;
+    *copy = *a;
+    CHECK(!SotnActors_CommitGhostRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)) &&
+          !SDL_memcmp(saved, leases, sizeof(saved)) && !SotnActors_GhostRow(a, &leases[2], 1));
+    a->primitives[leases[2].rows[1]].owner ^= 1;
+    a->primitives[700] = (ActorPrimitive){.owner = 4, .ability_kind = 0xa006};
+    *copy = *a;
+    CHECK(!SotnActors_CommitGhostRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)));
+    a->primitives[700] = (ActorPrimitive){0};
+    // Malformed requests: a size other than 8/3, the wrong slot or no generation.
+    SotnGhostLease bad[3] = {0};
+    SDL_memcpy(bad, want, sizeof(bad));
+    bad[0].count = 5;
+    CHECK(!SotnActors_CommitGhostRows(a, leases, bad));
+    SDL_memcpy(bad, want, sizeof(bad));
+    bad[2].slot = 6;
+    CHECK(!SotnActors_CommitGhostRows(a, leases, bad));
+    SDL_memcpy(bad, want, sizeof(bad));
+    bad[0].generation = 0;
+    CHECK(!SotnActors_CommitGhostRows(a, leases, bad));
+    // A new child finding too few free rows fails, preserving pool and leases.
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (!a->primitives[i].owner && i != 300 && i != 301)
+            a->primitives[i] = (ActorPrimitive){.owner = 7};
+    want[1] = (SotnGhostLease){.generation = 14, .slot = 6, .count = SOTN_GHOST_CONFUSED_ROWS};
+    *copy = *a;
+    SDL_memcpy(saved, leases, sizeof(saved));
+    CHECK(!SotnActors_CommitGhostRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)) &&
+          !SDL_memcmp(saved, leases, sizeof(saved)));
+    // Retirement releases every Ghost row and nothing else.
+    SDL_zero(want);
+    CHECK(SotnActors_CommitGhostRows(a, leases, want) && !leases[0].count && !leases[2].count &&
+          !a->primitives[1].owner && a->primitives[2].owner == 9 && a->primitives[0].owner == 7);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK((a->primitives[i].ability_kind & 0xf000U) != 0xa000U);
+    CHECK(!SotnActors_CommitGhostRows(NULL, leases, want) &&
+          !SotnActors_CommitGhostRows(a, NULL, want) && !SotnActors_GhostRow(NULL, &leases[0], 0));
+    SDL_free(copy);
+    SDL_free(a);
+    return true;
+}
 int main(void)
 {
     Fixture();
-    if (!Init() || !Attack() || !Confusion() || !RoomEvent() || !Lifecycle())
+    if (!Init() || !Attack() || !Confusion() || !RoomEvent() || !Lifecycle() || !Leases())
         return 1;
     SDL_Log("SOTN_GHOST_FAMILIAR_TEST: PASS");
     return 0;

@@ -37,6 +37,9 @@ bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, So
           item.kind == SOTN_DRAW_FAIRY_LIGHT) &&
          item.actor >= 4) ||
         (item.kind == SOTN_DRAW_FAIRY_TILE && item.primitive >= SOTN_FAIRY_ITEM_PARTICLES) ||
+        (item.kind == SOTN_DRAW_GHOST_SPRITE && (item.actor || item.primitive)) ||
+        (item.kind == SOTN_DRAW_GHOST_ROW &&
+         (item.actor < 1 || item.actor > 3 || item.primitive >= SOTN_GHOST_CLOUD_ROWS)) ||
         (item.kind == SOTN_DRAW_FAIRY_LIGHT && item.primitive >= SOTN_FAIRY_APPLE_ROWS) ||
         (item.kind == SOTN_DRAW_TELEPORT && item.primitive >= 48 * 36) ||
         (item.kind == SOTN_DRAW_PLAYER_CIRCLE && item.primitive >= 48 * 32) ||

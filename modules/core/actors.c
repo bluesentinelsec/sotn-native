@@ -636,17 +636,33 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                        actors->bat_runtime->star_mask || actors->bat_runtime->karma_mask ||
                        actors->bat_runtime->secondary_mask || actors->bat_runtime->familiar_mask ||
                        actors->bat_runtime->subweapon_mask || actors->bat_runtime->echo_attack ||
-                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask ||
+                       actors->bat_runtime->servant.attack.active);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
                    (actors->gas_cloud && actors->gas_cloud->generation ? SOTN_GAS_CLOUD_SLOTS : 0);
-    for (Uint32 channel = 0; channel < total_channels; ++channel)
+    const bool servant = actors->bat_runtime && actors->bat_runtime->servant.attack.active;
+    for (Uint32 step = servant ? 0 : 1; step <= total_channels; ++step)
     {
+        // HitDetection scans attackers in slot order: a servant's own slot4 precedes slots16+.
+        const bool servant_channel = step == 0;
+        const Uint32 channel = servant_channel ? total_channels : step - 1U;
         SotnPlayerState source = player;
         Uint32 hand = channel;
-        const bool kick = channel == normal_channels;
-        if (channel >= wing_start)
+        const bool kick = !servant_channel && channel == normal_channels;
+        if (servant_channel)
+        {
+            const SotnBatRuntime *runtime = actors->bat_runtime;
+            if (runtime->servant.group < 3 || runtime->servant.group > 6)
+                return SDL_SetError("Servant attack lost its original group3..6");
+            source.x = (Sint32)((Sint64)runtime->servant.x * 65536);
+            source.y = (Sint32)((Sint64)runtime->servant.y * 65536);
+            source.facing_left = runtime->servant.facing_left;
+            source.attack = runtime->servant.attack;
+            hand = ACTOR_WING_CHANNEL + runtime->servant.group - 3U;
+        }
+        else if (channel >= wing_start)
         {
             const Uint32 index = channel - wing_start;
             const SotnBatRuntime *runtime = actors->bat_runtime;
@@ -893,7 +909,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     recipient->state.hit_points = 0;
                     recipient->state.flags |= 0x100;
                 }
-                return AttackerFeedback(actors, channel, wing_start, actor, recipient);
+                return servant_channel ||
+                       AttackerFeedback(actors, channel, wing_start, actor, recipient);
             }
             if (recipient->state.hit_points != 0x7fff && recipient->state.hit_points != 0 &&
                 !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
@@ -931,7 +948,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->hit_params = source.attack.hit_effect & 127;
             if (actors->stage_id == 25 && recipient->state.id == 0x22)
                 recipient->hit_params = actor->hit_params;
-            if (!AttackerFeedback(actors, channel, wing_start, actor, recipient))
+            if (!servant_channel &&
+                !AttackerFeedback(actors, channel, wing_start, actor, recipient))
                 return false;
             if (kick)
             {

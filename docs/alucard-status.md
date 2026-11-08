@@ -178,13 +178,15 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [bound game-over audio](laboratory-game-over.md) now uses separate81/11 frames,
   original acknowledgement/XA gates,12/B cleanup, actual mute and33e. SPU updates
   continue without legacy overlap; original entity/GPU cleanup remains open.
-  **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
+  **The Fairy's relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character
   records already receive actual raw enemy rewards and menu load counts, and ordinary v11
   saves persist them. The Sword familiar, including Sword Brothers39, now runs; other
-  familiar owners remain unavailable. The [Ghost familiar component](ghost-familiar.md) now
-  reconstructs tt_001's behavior; its session, menu and combat integration remain open.
+  familiar owners remain unavailable. The [Ghost familiar](ghost-familiar.md) now runs too:
+  the session loads, ticks, translates and draws it (card19, record1, real ring/question-mark
+  row leases), the relic menu switches the Ghost Card and its slot4 attacks reach native
+  combat (spell17, soul-steal spell18 from level70) and familiar EXP.
   Supplied resource/card/item/health/clock
   fixtures remain separate from ordinary selection, acquisition, routes and console proof.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
