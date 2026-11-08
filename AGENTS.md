@@ -92,7 +92,12 @@ rows, SotnShieldStar_Project RotMatrix/RTPT/NCLIP, rows store vectors0/1/3/2, cu
 words, centre SZ>>2 priority); bp8 particles (entity9, key SOTN_CROSS_PARTICLES, 64 rows, 3
 rands/spark, func_80119E78). All screen-anchored; rows keep screen words. Subweapon factory
 requests keep the requester's screen position (shift by dx), and initialized non-locked
-factories (bp7) follow the camera. Other subweapons still use the old service until moved.
+factories (bp7) follow the camera. [Dagger](docs/player-dagger.md) (subweapon1, bp3 origin2, entity4):
+two rows (blade GT4 page0x1C/0x1AB + LINE_G2 trail, both DRAW_UNK02/room words, player prio+2),
+CAMERA_LOCKED, crouch-status(0x20) lift, 4x2 hitbox offX4, SetSpeedX 8, eight 1-px steps probing
+x+-8 (EFFECT_BLOCK incl. side-only, or hitFlags2: bounce -vx>>3/-2.5, FACTORY(10) at the probe,
+TINK, no redraw), hitFlags1 four-update hold, 64-update rcos/rsin spin with 0x20 grey fade.
+Axe/holy water/stopwatch still use the old service until moved; it is then removed.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
@@ -2424,8 +2429,8 @@ Version 9 saves retain this supported progress; versions 1/2/3/4 migrate explici
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
 
-The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagger, axe,
-holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
+The [selected subweapon service](docs/laboratory-subweapons.md) integrates axe,
+holy water, and stopwatch; the other subweapons now run on the shared player runtime.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
 Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character

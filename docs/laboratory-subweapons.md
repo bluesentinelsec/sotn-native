@@ -1,6 +1,6 @@
 # Selected Laboratory subweapons
 
-Hold Up and tap either attack button (keyboard Z/D or Xbox X/B). Dagger, axe,
+Hold Up and tap either attack button (keyboard Z/D or Xbox X/B). Axe,
 holy water, and stopwatch now use private original definitions for attack power,
 elements, heart cost, chain limits, and hit timing. Insufficient hearts or a full
 chain permits the original ordinary hand-attack fallback. Heart broach discounts
@@ -13,8 +13,7 @@ throw. Room entry clears transient projectiles and the stopwatch flag. Menu
 pause stops their motion, lifetimes, damage cadence, and heart spending. Saved
 character progress includes hearts and the selected subweapon, not projectiles.
 
-Selected reconstructed paths preserve dagger speed, terrain sweeps, impact delay,
-and wall bounce; axe velocity/gravity and hard-hit bounce; holy-water terrain
+Selected reconstructed paths preserve axe velocity/gravity and hard-hit bounce; holy-water terrain
 resolution, bottle lifetime and four delayed flames; and the stopwatch rise,
 countdown, exit, and actor freeze exceptions. Flame damage remains periodic.
 A rounded mathematical sine reproduces all 1,025 entries of the pinned original
@@ -22,8 +21,8 @@ quarter-wave table in a private comparison, without embedding that table.
 
 This is a selected attack checkpoint, not complete subweapon parity.
 [Vibhuti](player-vibhuti.md), [Rebound Stone](player-rebound-stone.md),
-[Agunea](player-agunea.md), the [Bible](player-bible.md) and the [Cross](player-cross.md) have
-moved to the shared player runtime (original factories, rows, attack groups and use grunt); the
+[Agunea](player-agunea.md), the [Bible](player-bible.md), the [Cross](player-cross.md) and the
+[dagger](player-dagger.md) have moved to the shared player runtime (original factories, rows, attack groups and use grunt); the
 paths above have not moved yet. Full projectile trails, glass/debris effects,
 original color modulation, these four paths' throw grunts/shared random consumption, item
 crashes, and all transform/form interactions remain incomplete.
@@ -36,12 +35,13 @@ For a controlled native test, append `--laboratory-test-profile dagger`, `axe`,
 fixtures grant the selected subweapon and fill current hearts to their maximum;
 they are not original new-game starts. `inventory` grants selected test equipment;
 `progression` starts one EXP below the next level. Continue rejects fixture options
-and restores only saved progress.
+and restores only saved progress. The `dagger` fixture now exercises the shared-runtime
+[dagger](player-dagger.md).
 
 Public synthetic regressions cover heart costs/discounts, chain rejection and
 unchanged RNG, projectile motion/impacts, flame creation, stopwatch duration,
 room reset, invalid data, repeated casts after animation transitions, and affine
-texture bounds. Private LLDB tests ran this project's native scene: dagger, axe,
+texture bounds. Private LLDB tests ran this project's native scene: the old dagger, axe,
 and holy water each killed an original Bloody Zombie; stopwatch activation and
 expiry ran with original artwork/audio. Those targeted checks do not prove full
 original gameplay or audiovisual parity.

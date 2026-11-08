@@ -48,7 +48,11 @@ enum
     SOTN_CROSS_PARTICLES = 0x109,
     SOTN_CROSS_PARTICLES_BLUEPRINT = 8,
     SOTN_CROSS_PARTICLES_ENTITY = 9,
-    SOTN_CROSS_PARTICLE_ROWS = 64 /**< AllocPrimitives(PRIM_GT4, 64), first free. */
+    SOTN_CROSS_PARTICLE_ROWS = 64, /**< AllocPrimitives(PRIM_GT4, 64), first free. */
+    SOTN_SUBWEAPON_DAGGER = 1,
+    SOTN_DAGGER_BLUEPRINT = 3,
+    SOTN_DAGGER_ENTITY = 4,
+    SOTN_DAGGER_ROWS = 2 /**< AllocPrimitives(PRIM_GT4, 2): the blade, then a LINE_G2 trail. */
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -179,6 +183,20 @@ typedef struct SotnCrossParticles
     Sint16 timer; /**< ext.timer.t. */
 } SotnCrossParticles;
 
+/** @brief Original EntitySubwpnKnife ext words and its two rows. Both rows have DRAW_UNK02
+ * (the entity has FLAG_POS_CAMERA_LOCKED), so their words are room-local pixels. */
+typedef struct SotnDagger
+{
+    Sint32 x[4], y[4];           /**< Blade GT4 (page 0x1C, palette 0x1AB). */
+    Sint32 line_x[2], line_y[2]; /**< Trail LINE_G2 (0x7F/0x3F/0 to black, additive). */
+    Sint32 velocity_y;
+    Sint16 timer;                /**< ext.timer.t. */
+    Sint16 rotate;               /**< Entity rotate while bouncing. */
+    Uint16 row_priority;         /**< Both rows: the player's priority + 2 at birth. */
+    Uint16 quad_mode, line_mode; /**< drawMode words. */
+    Uint8 grey;                  /**< Blade PGREY once its fade starts (DRAW_COLORS). */
+} SotnDagger;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -200,6 +218,7 @@ typedef struct SotnSubweaponEntity
         SotnCrossBeam beam;
         SotnGiantCross cross;
         SotnCrossParticles sparks;
+        SotnDagger dagger;
     };
 } SotnSubweaponEntity;
 
@@ -267,7 +286,8 @@ bool SotnSubweaponEntity_CrossFace(SotnDataView dra, Uint16 row, Uint8 u[4], Uin
 bool SotnSubweaponEntity_SparkFace(SotnDataView dra, Uint16 frame, Uint8 u[4], Uint8 v[4]);
 /** @brief Run one DRA subweapon callback (EntitySubwpnThrownVibhuti, EntitySubwpnReboundStone,
  * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail,
- * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles).
+ * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles,
+ * EntitySubwpnKnife).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth
