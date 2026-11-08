@@ -102,8 +102,15 @@ DRAW_UNK02; row0 recomputed, afterimages copy it), CAMERA_LOCKED|KEEP_ALIVE|0x20
 room-shifted), reversed facing + SetSpeedX(FIX(-2)) = forward, PlaySfxVolPan swish each quarter
 turn (volume 0x7F-8; SotnSubweaponEvents.volume_sound), gravity 34/128 capped 8, line>0x100 exit,
 hitFlags2 bounce (-(vx/2) truncated, FIX(-3), 0xC0 reverse spin, gravity 18/128), three-update
-pose cycle, D_800B0628 tints, g_GameTimer CLUT. Holy water/stopwatch still use the old service
-until moved; it is then removed.
+pose cycle, D_800B0628 tints, g_GameTimer CLUT. [Holy water](docs/player-holy-water.md)
+(subweapon3, bp27, entity22): a ROWLESS bank-9 sprite (SotnSubweaponEntity_Known; runtime passes
+allocated), real CheckHolyWaterCollision/func_80125B6C ports, HOLY_WATER_ATTACK + FACTORY(59)
+glass (entity40, key SOTN_HOLY_WATER_GLASS, 16 rows, 48 rands, 32..63) and four FACTORY(28 |
+D_8013841C<<16, 11<<9) flames (entity23, subweapon11; r.holy_counter, never saved; flame
+parameter high byte allowed). Flames roll three colours BEFORE AllocPrimitives (failure still
+consumes them), request FACTORY(4,7) profile7 smoke (player particles behaviour3 like 4/11),
+toggle hitboxState via attack_set/attack_on, D_800B0688 UVs as s32 pairs. The stopwatch still
+uses the old service until moved; it is then removed.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
@@ -2435,8 +2442,8 @@ Version 9 saves retain this supported progress; versions 1/2/3/4 migrate explici
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
 
-The [selected subweapon service](docs/laboratory-subweapons.md) integrates holy water
-and stopwatch; the other subweapons now run on the shared player runtime.
+The [selected subweapon service](docs/laboratory-subweapons.md) integrates the
+stopwatch; the other subweapons now run on the shared player runtime.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
 Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character

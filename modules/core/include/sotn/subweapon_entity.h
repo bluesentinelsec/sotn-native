@@ -56,7 +56,21 @@ enum
     SOTN_SUBWEAPON_AXE = 2,
     SOTN_AXE_BLUEPRINT = 9,
     SOTN_AXE_ENTITY = 10,
-    SOTN_AXE_ROWS = 5 /**< AllocPrimitives(PRIM_GT4, 5): the axe and four afterimages. */
+    SOTN_AXE_ROWS = 5, /**< AllocPrimitives(PRIM_GT4, 5): the axe and four afterimages. */
+    SOTN_SUBWEAPON_HOLY_WATER = 3, /**< The bottle: a bank-9 sprite without rows. */
+    SOTN_HOLY_WATER_BLUEPRINT = 27,
+    SOTN_HOLY_WATER_ENTITY = 22,
+    /** Subweapon 11, g_SubwpnDefs[3].crashId: EntitySubwpnHolyWaterFlame's ext.subweaponId. */
+    SOTN_HOLY_WATER_FLAME = 11,
+    SOTN_HOLY_WATER_FLAME_BLUEPRINT = 28,
+    SOTN_HOLY_WATER_FLAME_ENTITY = 23,
+    SOTN_HOLY_WATER_FLAME_ROWS = 4,
+    /** Native key for EntitySubwpnHolyWaterBreakGlass (entity 40, blueprint 59, subweaponId 0). */
+    SOTN_HOLY_WATER_GLASS = 0x128,
+    SOTN_HOLY_WATER_GLASS_BLUEPRINT = 59,
+    SOTN_HOLY_WATER_GLASS_ENTITY = 40,
+    SOTN_HOLY_WATER_GLASS_ROWS = 16, /**< Eight hidden FakePrim carriers, then eight G4 shards. */
+    SOTN_HOLY_WATER_SMOKE = 0x70004  /**< FACTORY(BP_4, 7): profile-7 green smoke. */
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -222,6 +236,41 @@ typedef struct SotnAxe
     Uint16 row_priority; /**< The player's priority - 2 at birth. */
 } SotnAxe;
 
+/** @brief Original EntitySubwpnHolyWater ext words. The bottle is an entity sprite (DRA bank 9,
+ * frame 0x1D) until it breaks, then a hidden hitbox releasing the flames. */
+typedef struct SotnHolyWater
+{
+    Sint32 velocity_y;
+    Sint16 timer; /**< ext.holywater.timer. */
+    Uint8 crash;  /**< unkB2 from func_8011A290: the definition's crashId (11). */
+    bool shown;   /**< animSet ANIMSET_DRA(9), cleared (0) at the break. */
+} SotnHolyWater;
+
+/** @brief Original EntitySubwpnHolyWaterBreakGlass: eight hidden FakePrim carriers (16.16 room
+ * positions) and eight G4 shards placed around them from D_800B0658 (DRAW_UNK02 room words). */
+typedef struct SotnHolyGlass
+{
+    Sint32 x[8], y[8], velocity_x[8], velocity_y[8];
+    Uint8 red[8], green[8], blue[8];
+    Uint16 draw_mode[8]; /**< 0x37 (additive) or 0x06 (opaque), DRAW_COLORS | DRAW_UNK02. */
+    Sint16 timer;
+    Uint16 row_priority;
+} SotnHolyGlass;
+
+/** @brief Original EntitySubwpnHolyWaterFlame: four GT4 strips (page 0x1A, palette 0x1B2,
+ * additive, DRAW_UNK02 room words) between five wave points, sharing one fading colour. */
+typedef struct SotnHolyFlame
+{
+    Sint32 x[5], y[5];
+    Sint16 timer;  /**< 0x50 down to 0x11. */
+    Sint16 angle;  /**< Wave phase, +0x180 per update. */
+    Sint16 height; /**< unk80: 0x12..0x21. */
+    Uint8 red, green, blue;
+    Uint8 frame; /**< g_GameTimer & 7 at the last update: D_800B0688 UV pair. */
+    bool shown;  /**< DRAW_HIDE cleared (the flame is at least seven pixels tall). */
+    Uint16 row_priority;
+} SotnHolyFlame;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -245,6 +294,9 @@ typedef struct SotnSubweaponEntity
         SotnCrossParticles sparks;
         SotnDagger dagger;
         SotnAxe axe;
+        SotnHolyWater holy;
+        SotnHolyGlass glass;
+        SotnHolyFlame flame;
     };
 } SotnSubweaponEntity;
 
@@ -279,6 +331,7 @@ typedef struct SotnSubweaponInput
     Uint32 game_timer;         /**< g_GameTimer: the Bible swishes when it is a multiple of 10. */
     Uint32 engine_timer;       /**< g_Timer: the cross beam widens on odd frames. */
     Uint16 crash;              /**< func_8011A290's crashId for this entity's definition. */
+    Uint32 flame_counter;      /**< DRA BSS D_8013841C: the holy water flames' factory parameter. */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */
@@ -297,12 +350,25 @@ typedef struct SotnSubweaponEvents
     bool reset_afterimages;      /**< func_8010DFF0(1, 1), even before a failed birth. */
     Uint8 spell_use_ticks;       /**< g_Player.timers[12]. */
     bool volume_sound;           /**< sound is PlaySfxVolPan(sound, volume, 0). */
+    bool flame_counter_step;     /**< D_8013841C++ after a flame factory request. */
+    bool attack_set;             /**< hitboxState written this callback (attack_on: 2, else 0). */
+    bool attack_on;
     Uint16 volume;
     bool upload_gradient; /**< LoadImage(&D_800B0788, D_800B06C8): the beam gradient. */
 } SotnSubweaponEvents;
 
-/** @brief Rows a supported subweapon entity leases at birth (zero when unsupported). */
+/** @brief Rows a supported subweapon entity leases at birth (zero when unsupported or rowless).
+ */
 Uint16 SotnSubweaponEntity_Rows(Uint16 id);
+/** @brief Whether the shared runtime owns this subweapon entity key (the holy water bottle has no
+ * rows). */
+bool SotnSubweaponEntity_Known(Uint16 id);
+/** @brief Read a holy water shard's three private D_800B0658 offset pairs. @param dra Private DRA.
+ * @param shard Shard 0..3. @param out Receives x0,y0,x1,y1,x2,y2. @return Success or error. */
+bool SotnSubweaponEntity_GlassShard(SotnDataView dra, Uint16 shard, Sint16 out[6]);
+/** @brief Read a holy water flame UV origin (D_800B0688). @param dra Private DRA.
+ * @param frame g_GameTimer & 7. @param u Receives texX. @param v Receives texY. */
+bool SotnSubweaponEntity_FlameTexture(SotnDataView dra, Uint16 frame, Uint8 *u, Uint8 *v);
 /** @brief Read a giant cross row's private UVs and palette (D_800B0F94, set at birth).
  * @param dra Private DRA image. @param row Row 0..45. @param u Receives u0..u3.
  * @param v Receives v0..v3. @param palette Receives the CLUT. @return Success or SDL error. */
@@ -318,7 +384,8 @@ bool SotnSubweaponEntity_AxeTint(SotnDataView dra, Uint16 index, Uint8 rgb[3]);
 /** @brief Run one DRA subweapon callback (EntitySubwpnThrownVibhuti, EntitySubwpnReboundStone,
  * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail,
  * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles,
- * EntitySubwpnKnife, EntitySubwpnThrownAxe).
+ * EntitySubwpnKnife, EntitySubwpnThrownAxe, EntitySubwpnHolyWater, EntitySubwpnHolyWaterBreakGlass,
+ * EntitySubwpnHolyWaterFlame).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth

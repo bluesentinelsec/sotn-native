@@ -2052,6 +2052,325 @@ static bool AxeRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// EntitySubwpnHolyWater: birth, gravity, floor landing (no row allocation), the side wall's
+// whole-pixel snap, the break, four counted flame factories and retirement.
+static bool HolyWater(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .collision = Map(),
+                             .properties = Roll,
+                             .context = &rolls,
+                             .player_priority = 148,
+                             .crash = SOTN_HOLY_WATER_FLAME,
+                             .flame_counter = 0x1234};
+    const SotnSubweaponEntity fresh = {
+        .x = 40 * 65536 + 0x1234, .y = 92 * 65536 + 0x5678, .id = SOTN_SUBWEAPON_HOLY_WATER};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 3, expected = 3;
+    (void)SotnCombat_Random(&expected);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && rolls == 1 &&
+          e.step == 1 && e.flags == 0x08000000U && e.holy.shown && e.priority == 146 &&
+          e.y == fresh.y + 8 * 65536 && e.velocity_x == 0x14000 && e.holy.velocity_y == -0x32000 &&
+          e.holy.crash == SOTN_HOLY_WATER_FLAME && e.hitbox_width == 4 && e.hitbox_height == 4 &&
+          ev.use_ticks == 4 && !ev.sound);
+    e.facing_left = true;
+    e.step = 0;
+    e.y = fresh.y;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.velocity_x == -0x14000);
+    e = fresh;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    expected = random;
+    for (Uint16 tick = 0; tick < 80 && e.step == 1; ++tick)
+    {
+        const SotnSubweaponEntity before = e;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected);
+        if (e.step == 1)
+            CHECK(e.y == before.y + before.holy.velocity_y &&
+                  e.holy.velocity_y ==
+                      before.holy.velocity_y + (before.holy.velocity_y < 0x40000 ? 0x3800 : 0) &&
+                  e.x == before.x + 0x14000 && !ev.sound && !ev.factories);
+    }
+    // Landed on the floor's first solid pixel (rows 10.. from y160).
+    SotnCollider at = {0}, above = {0};
+    CHECK(e.step == 2 && SotnCollision_Query(&in.collision, Whole(e.x), Whole(e.y), &at) &&
+          SotnCollision_Query(&in.collision, Whole(e.x), Whole(e.y) - 1, &above) &&
+          (at.effects & 1U) && !(above.effects & 1U) && Whole(e.y) == 160 && (e.x & 0xffff) != 0 &&
+          ev.sound == 0x69a && ev.factories == 1 &&
+          ev.factory_packed[0] == SOTN_HOLY_WATER_GLASS_BLUEPRINT && !ev.factory_argument[0] &&
+          !e.holy.shown && e.holy.timer == 16);
+    // Flames on the updates whose timer is a multiple of four (16, 12, 8, 4).
+    Uint16 flames = 0;
+    for (Uint16 tick = 0; tick < 16; ++tick)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed);
+        if (ev.factories)
+        {
+            CHECK(tick % 4 == 0 && ev.flame_counter_step &&
+                  ev.factory_packed[0] == (SOTN_HOLY_WATER_FLAME_BLUEPRINT | 0x12340000U) &&
+                  ev.factory_argument[0] == SOTN_HOLY_WATER_FLAME << 9 && ev.factory_x == e.x);
+            ++flames;
+        }
+    }
+    CHECK(flames == 4 && e.step == 3 && e.holy.timer == 4);
+    for (Uint16 tick = 0; tick < 3; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    // A side-only wall: the bottle snaps to its whole-pixel side and breaks.
+    types[1] = 2;
+    e = fresh;
+    e.x = 118 * 65536 + 0x8000;
+    e.y = 120 * 65536;
+    e.step = 1;
+    e.velocity_x = 0x14000;
+    e.holy.velocity_y = -0x10000;
+    for (Uint16 tick = 0; tick < 8 && e.step == 1; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    types[1] = 3;
+    CHECK(e.step == 2 && !(e.x & 0xffff) && Whole(e.x) <= 124 && ev.sound == 0x69a);
+    // A still bottle (no horizontal speed) never probes the side.
+    e = fresh;
+    e.step = 1;
+    e.velocity_x = 0;
+    e.y = 120 * 65536;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1);
+    // A side-only tile above the floor does not stop the landing (only EFFECT_SOLID does).
+    static Uint8 strip_tiles[8 * 12 * 2];
+    static Uint8 strip_types[3] = {0, 3, 2};
+    for (Uint16 y = 0; y < 12; ++y)
+        for (Uint16 x = 0; x < 8; ++x)
+            Put16(strip_tiles + ((size_t)y * 8 + x) * 2U, y >= 10 ? 1 : y == 9 ? 2 : 0);
+    in.collision = (SotnCollisionMap){
+        {strip_tiles, sizeof(strip_tiles)}, {strip_types, sizeof(strip_types)}, 8, 12};
+    e = fresh;
+    e.step = 1;
+    e.velocity_x = 0;
+    e.y = 120 * 65536;
+    e.holy.velocity_y = 0x40000;
+    for (Uint16 tick = 0; tick < 12 && e.step == 1; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    CHECK(e.step == 2 && Whole(e.y) == 160 && ev.sound == 0x69a);
+    in.collision = Map();
+    e = (SotnSubweaponEntity){.id = SOTN_SUBWEAPON_HOLY_WATER, .step = 4};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    return true;
+}
+// EntitySubwpnHolyWaterBreakGlass: the 48 birth rolls, the carriers' fall and retirement.
+static bool HolyGlass(void)
+{
+    SotnSubweaponInput in = {.player_priority = 148, .allocated = true};
+    SotnSubweaponEntity e = {
+        .x = 70 * 65536 + 0x1234, .y = 150 * 65536 + 0x4321, .id = SOTN_HOLY_WATER_GLASS};
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 99, expected = 99;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && e.flags == 0x08800000U &&
+          e.glass.timer == 20 && e.glass.row_priority == 150);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        Sint32 vx = (Sint32)(SotnCombat_Random(&expected) & 0x3fffU) + 0x4000;
+        const Sint32 vy = -((Sint32)(SotnCombat_Random(&expected) & 0x7fffU) * 2 + 0x28000);
+        if (i & 1U)
+            vx = -vx;
+        CHECK(e.glass.x[i] == 70 * 65536 && e.glass.y[i] == 150 * 65536 &&
+              e.glass.velocity_x[i] == vx && e.glass.velocity_y[i] == vy);
+    }
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        const Uint8 r = (Uint8)((SotnCombat_Random(&expected) & 0xfU) + 0x30),
+                    b = (Uint8)((SotnCombat_Random(&expected) & 0x7fU) + 0x80),
+                    g = (Uint8)((SotnCombat_Random(&expected) & 0x1fU) + 0x30);
+        const Uint16 mode = (SotnCombat_Random(&expected) & 1U) ? 0x37 : 0x06;
+        CHECK(e.glass.red[i] == r && e.glass.blue[i] == b && e.glass.green[i] == g &&
+              e.glass.draw_mode[i] == mode);
+    }
+    CHECK(random == expected);
+    for (Uint16 tick = 1; tick < 20; ++tick)
+    {
+        const SotnHolyGlass before = e.glass;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed &&
+              e.glass.timer == 20 - tick && random == expected);
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(e.glass.x[i] == before.x[i] + before.velocity_x[i] &&
+                  e.glass.y[i] == before.y[i] + before.velocity_y[i] &&
+                  e.glass.velocity_y[i] == before.velocity_y[i] + 0x4800);
+    }
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    e = (SotnSubweaponEntity){.id = SOTN_HOLY_WATER_GLASS};
+    in.allocated = false;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == expected);
+    return true;
+}
+// EntitySubwpnHolyWaterFlame: colour rolls before the allocation, the smoke factory, the height
+// roll, the exact wave/height, the alternating hitbox, the fade, the hide and retirement.
+static bool HolyFlame(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 20,
+                             .screen_y = 30,
+                             .player_priority = 148,
+                             .game_timer = 13};
+    const SotnSubweaponEntity fresh = {
+        .x = 90 * 65536 + 0x1234, .y = 160 * 65536 + 0x4321, .id = SOTN_HOLY_WATER_FLAME};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 5, expected = 5;
+    for (Uint16 i = 0; i < 3; ++i)
+        (void)SotnCombat_Random(&expected);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == expected &&
+          !rolls);
+    in.allocated = true;
+    e = fresh;
+    expected = random;
+    const Uint8 red = (Uint8)((SotnCombat_Random(&expected) & 0x1fU) + 0x40),
+                green = (Uint8)((SotnCombat_Random(&expected) & 0x1fU) + 0x80),
+                blue = (Uint8)((SotnCombat_Random(&expected) & 0x1fU) + 0x60);
+    (void)SotnCombat_Random(&expected); // properties
+    const Sint16 height = (Sint16)((SotnCombat_Random(&expected) & 0xfU) + 0x12);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && rolls == 1 &&
+          e.step == 1 && e.flags == 0x08800000U && e.flame.red == red && e.flame.green == green &&
+          e.flame.blue == blue && e.flame.height == height && e.flame.timer == 0x50 &&
+          e.hitbox_width == 4 && e.flame.row_priority == 150 && ev.factories == 1 &&
+          ev.factory_packed[0] == SOTN_HOLY_WATER_SMOKE && ev.factory_y == fresh.y - 10 * 65536 &&
+          e.y == fresh.y && !e.flame.shown);
+    for (Sint16 timer = 0x4f; timer >= 0x10; --timer)
+    {
+        const SotnSubweaponEntity before = e;
+        in.game_timer = (Uint32)timer * 3U;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected &&
+              ev.attack_set && ev.attack_on == !(before.flame.timer & 3));
+        if (timer < 0x11)
+        {
+            CHECK(e.removed);
+            break;
+        }
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig(executable, (before.flame.timer - 0x10) * 64 + 0xc00, &t));
+        const Sint32 h = Floor(t.sine, 8) + height;
+        CHECK(e.flame.timer == timer && e.flame.angle == (Sint16)(before.flame.angle + 0x180) &&
+              e.flame.y[0] == 160 - h && e.flame.y[4] == 160 &&
+              e.flame.y[2] == 30 + (160 - h - 30 + 130) / 2 && e.flame.x[0] == 90 &&
+              e.flame.x[4] == 90 && e.flame.shown == (h >= 7) &&
+              e.flame.frame == (in.game_timer & 7U) && e.hitbox_height == (Uint8)Floor(h, 1) &&
+              e.hitbox_y == Floor(-h, 1));
+        for (Uint16 i = 1; i < 4; ++i)
+        {
+            CHECK(SotnMath_Trig(executable, (Sint16)(before.flame.angle + (i << 10)), &t));
+            CHECK(e.flame.x[i] == 90 + Floor(t.sine, 10));
+        }
+        const Uint8 fade = timer < 0x29 ? 5 : 0;
+        CHECK(e.flame.red == (before.flame.red > 16 ? before.flame.red - fade : before.flame.red) &&
+              e.flame.green ==
+                  (before.flame.green > 16 ? before.flame.green - fade : before.flame.green));
+    }
+    CHECK(e.removed);
+    return true;
+}
+// Holy water through the shared runtime: blueprint27 (no rows), the landing, blueprint59 glass
+// in 32..63, four counted flames (4 rows, groups) and their profile7 smoke children.
+static bool HolyRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    const Uint16 ids[2] = {SOTN_SUBWEAPON_HOLY_WATER, SOTN_HOLY_WATER_FLAME};
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *def = dra + 0x4a00 + ids[i] * 20U;
+        def[0] = i ? 8 : 1;
+        def[2] = 3;
+        Put16(def + 4, 0x20);
+        def[6] = 3;
+        def[7] = 32;
+        def[8] = 8;
+        def[10] = 0xbc;
+        def[11] = SOTN_HOLY_WATER_BLUEPRINT;
+        def[12] = 2;
+        def[14] = 1;
+        def[16] = i ? 0 : SOTN_HOLY_WATER_FLAME;
+    }
+    const Uint8 blueprints[4][7] = {{27, 22, 1, 0xc1, 0, 0x22, 0},
+                                    {28, 23, 1, 0xc1, 0, 0x02, 0},
+                                    {59, 40, 1, 0xc1, 0, 0x00, 0},
+                                    {4, 5, 1, 0xc1, 0, 0x00, 0}};
+    for (Uint16 i = 0; i < 4; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 6);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    // Profile7 smoke: eight tiles, behaviour3.
+    Put16(dra + 0xdb98 + 7 * 4U, 0x0f00);
+    Put16(dra + 0xdb98 + 7 * 4U + 2U, 0x800a);
+    Uint8 *profile7 = dra + 0xf00;
+    profile7[0] = 8;
+    profile7[2] = 240;
+    profile7[4] = profile7[5] = 1;
+    Put16(profile7 + 6, 4);
+    Put16(profile7 + 8, 0x73);
+    Put16(profile7 + 10, 3);
+    Put16(profile7 + 14, 0x880);
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .player = {.hp = 70, .x = 60 * 65536, .y = 100 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 60 * 65536, .y = 100 * 65536, .priority = 148},
+              SOTN_HOLY_WATER_BLUEPRINT, SOTN_SUBWEAPON_HOLY_WATER << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *b = &r->children[16];
+    CHECK(b->subweapon && b->initialized && b->kind == SOTN_HOLY_WATER_ENTITY &&
+          !b->primitive_count && b->group == 7 && b->state.subweapon.attack.width == 4 &&
+          SotnBatRuntime_SubweaponValid(b, 16) &&
+          SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_HOLY_WATER) == 1 &&
+          b->state.subweapon.motion.holy.crash == SOTN_HOLY_WATER_FLAME);
+    Uint16 glass = 0, flames = 0, smoke = 0, live_flames = 0;
+    for (Uint16 tick = 0; tick < 120; ++tick)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        Uint16 live = 0;
+        for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (c->kind == SOTN_HOLY_WATER_GLASS_ENTITY)
+            {
+                CHECK(c->primitive_count == 16 && !c->group && SotnBatRuntime_SubweaponValid(c, i));
+                glass = SDL_max(glass, 1);
+            }
+            if (c->kind == SOTN_HOLY_WATER_FLAME_ENTITY)
+            {
+                CHECK(c->primitive_count == 4 && c->group >= 7 && c->group <= 10 &&
+                      SotnBatRuntime_SubweaponValid(c, i) && i < 32 && !(c->parameter & 0xff));
+                ++live;
+            }
+            smoke +=
+                c->kind == 5 && c->parameter == 0x700 && c->initialized && c->primitive_count == 9;
+        }
+        live_flames = SDL_max(live_flames, live);
+        flames = (Uint16)r->holy_counter;
+    }
+    CHECK(glass && flames == 4 && live_flames == 4 && smoke >= 4 && !b->kind &&
+          r->holy_counter == 4);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -2095,7 +2414,9 @@ int main(void)
         Sparks() && GiantCross((SotnDataView){bytes, 0x23212}) &&
         CrossRuntime((SotnDataView){bytes, 0x23212}) && Dagger((SotnDataView){bytes, 0x23212}) &&
         DaggerRuntime((SotnDataView){bytes, 0x23212}) && Axe((SotnDataView){bytes, 0x23212}) &&
-        AxeRuntime((SotnDataView){bytes, 0x23212});
+        AxeRuntime((SotnDataView){bytes, 0x23212}) && HolyWater((SotnDataView){bytes, 0x23212}) &&
+        HolyGlass() && HolyFlame((SotnDataView){bytes, 0x23212}) &&
+        HolyRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;
@@ -2111,6 +2432,7 @@ int main(void)
         "runtime six screen-anchored crosses/contiguous rows/chain/prune; dagger birth/flight/"
         "wall and guard bounces/enemy hold/spin/fade, runtime rows/tink factory/prune; axe "
         "facing/lift/swish volume/gravity/retirement/bounce/afterimages, runtime rows/volume/"
-        "room retention");
+        "room retention; holy water landing/wall/break/flame factories, glass rolls/fall, flame "
+        "rolls/wave/hitbox/fade, runtime rowless bottle/glass/flames/smoke");
     return 0;
 }

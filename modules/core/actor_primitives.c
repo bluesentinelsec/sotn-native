@@ -335,7 +335,8 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == SOTN_BIBLE_ENTITY || kind == SOTN_BIBLE_TRAIL_ENTITY ||
            kind == SOTN_CROSS_ENTITY || kind == SOTN_GIANT_CROSS_ENTITY ||
            kind == SOTN_CROSS_PARTICLES_ENTITY || kind == SOTN_DAGGER_ENTITY ||
-           kind == SOTN_AXE_ENTITY;
+           kind == SOTN_AXE_ENTITY || kind == SOTN_HOLY_WATER_FLAME_ENTITY ||
+           kind == SOTN_HOLY_WATER_GLASS_ENTITY;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {

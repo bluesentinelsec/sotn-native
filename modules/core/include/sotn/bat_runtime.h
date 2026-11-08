@@ -313,6 +313,7 @@ typedef struct SotnBatRuntime
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     bool cross_upload;    /**< The cross beam's one-row gradient upload intent (D_800B0788). */
+    Uint32 holy_counter;  /**< DRA BSS D_8013841C (flame factory parameter); never saved. */
     Uint64
         target_marks[2]; /**< New original flag80000 writes, committed with real row ownership. */
     Uint32 target_generations[SOTN_SPELL_TARGETS];

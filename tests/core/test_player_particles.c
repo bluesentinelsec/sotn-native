@@ -443,10 +443,63 @@ static bool SireParticles(void)
           !effect.lifetime && effect.tiles[0].y == last && random == 0x12345678);
     return true;
 }
+// Profile7 (holy water flame smoke, behaviour3 like profiles4/11): three rand calls per tile
+// (spread 0..15-7, rise 0..31, speed), staggered timers, Y-only motion, double lifetime decrement.
+static bool HolySmoke(void)
+{
+    Uint8 dra[0xdbd4] = {0};
+    Put32(dra + 0xdb98 + 7 * 4U, 0x800a0100U);
+    Uint8 *p = dra + 0x100;
+    p[0] = 8;
+    p[1] = 63;
+    p[2] = 240;
+    p[3] = 63;
+    p[4] = p[5] = 1;
+    Put16(p + 6, 4);
+    Put16(p + 8, 0x73);
+    Put16(p + 10, 3);
+    Put32(p + 12, 0x8800000);
+    const SotnDataView view = {dra, sizeof(dra)};
+    Uint16 rows = 0;
+    CHECK(SotnPlayerParticles_Rows(view, 0x700, &rows) && rows == 9);
+    Put16(p + 10, 4);
+    CHECK(!SotnPlayerParticles_Rows(view, 0x700, &rows));
+    Put16(p + 10, 3);
+    SotnPlayerParticles effect = {0};
+    Uint32 random = 77, expected = 77;
+    const SotnPlayerParticlesInput input = {.parameter = 0x700,
+                                            .source = {.x = 100 * 65536, .y = 80 * 65536},
+                                            .player_priority = 148,
+                                            .allocated = true};
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && effect.phase == 1 &&
+          effect.count == 8 && effect.priority == 152 && effect.lifetime == 31);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        const SotnPlayerParticle *t = &effect.tiles[i];
+        const Sint32 x = 100 + (Sint32)(SotnCombat_Random(&expected) & 15U) - 7,
+                     y = 80 - (Sint32)(SotnCombat_Random(&expected) & 31U);
+        const Sint32 vy = -49152 - (Sint32)(SotnCombat_Random(&expected) & 32767U);
+        CHECK(t->x == x * 65536 && t->y == y * 65536 && t->velocity_y == vy && !t->velocity_x &&
+              t->timer == i * 2U + 15U && t->green == 240 && t->draw_mode == 0x73);
+    }
+    CHECK(random == expected);
+    Uint16 updates = 0;
+    while (!effect.removed && updates < 40)
+    {
+        const SotnPlayerParticles before = effect;
+        CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && random == expected);
+        ++updates;
+        if (!effect.removed)
+            CHECK(effect.tiles[3].y == before.tiles[3].y + before.tiles[3].velocity_y &&
+                  effect.tiles[3].x == before.tiles[3].x);
+    }
+    CHECK(updates == 16);
+    return true;
+}
 int main(void)
 {
     return Run() && VectorParticles(5) && VectorParticles(6) && StoneParticles() && Vectors() &&
-                   Smoke() && ScatteredSmoke() && HurtSmoke() && SireParticles()
+                   Smoke() && ScatteredSmoke() && HurtSmoke() && SireParticles() && HolySmoke()
                ? 0
                : 1;
 }

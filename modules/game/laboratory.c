@@ -1127,8 +1127,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, Rebound Stone, Vibhuti,
-// Agunea, Bible, Cross):
+// func_8010EB5C for subweapons the shared runtime owns (dagger, axe, holy water, Rebound Stone,
+// Vibhuti, Agunea, Bible, Cross):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1140,6 +1140,7 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
         return SDL_SetError("Shared subweapon use requires its session and outputs");
     *handled =
         progress.subweapon == SOTN_SUBWEAPON_DAGGER || progress.subweapon == SOTN_SUBWEAPON_AXE ||
+        progress.subweapon == SOTN_SUBWEAPON_HOLY_WATER ||
         progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
         progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
         progress.subweapon == SOTN_SUBWEAPON_AGUNEA || progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
@@ -3958,6 +3959,66 @@ static bool DrawCrossRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16
     }
     return DrawOriginalEffectQuad(s, &q);
 }
+static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p);
+// Holy water: the bottle is DRA bank 9 frame 0x1D; shards are untextured G4s around their
+// carriers (D_800B0658, x2 = x3); flames are additive GT4 strips on page 0x1A (palette 0x1B2)
+// textured from D_800B0688. Shard and flame words are room pixels (DRAW_UNK02).
+static bool DrawHolyWaterRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16 row,
+                             Sint32 view_x, Sint32 view_y)
+{
+    if (m->id == SOTN_SUBWEAPON_HOLY_WATER)
+    {
+        if (row || !m->holy.shown)
+            return SDL_SetError("Holy water bottle draw lost its shown sprite");
+        return SotnActorGraphics_DrawScaled(
+            s->actor_graphics,
+            (SotnActorSprite){.animation_set = 9, .frame = 0x1d, .facing_left = m->facing_left},
+            Pixel(m->x) - view_x + s->draw_target.offset_x,
+            Pixel(m->y) - view_y + s->draw_target.offset_y, 256, 256, s->draw_target.surface);
+    }
+    if (m->id == SOTN_HOLY_WATER_GLASS)
+    {
+        Sint16 o[6] = {0};
+        if (row < 8 || row >= 16 || !SotnSubweaponEntity_GlassShard(s->dra, row & 3U, o))
+            return SDL_SetError("Holy water shard draw names a row it does not own");
+        const SotnHolyGlass *g = &m->glass;
+        const Uint16 i = (Uint16)(row - 8U);
+        const Sint32 cx = Pixel(g->x[i]) - view_x, cy = Pixel(g->y[i]) - view_y;
+        SotnPlayerEffectQuad q = {.x = {BlinkWord(cx + o[0]), BlinkWord(cx + o[2]),
+                                        BlinkWord(cx + o[4]), BlinkWord(cx + o[4])},
+                                  .y = {BlinkWord(cy + o[1]), BlinkWord(cy + o[3]),
+                                        BlinkWord(cy + o[5]), BlinkWord(cy + o[5])},
+                                  .priority = g->row_priority,
+                                  .draw_mode = g->draw_mode[i]};
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.red[v] = g->red[i];
+            q.green[v] = g->green[i];
+            q.blue[v] = g->blue[i];
+        }
+        return DrawIceQuad(s, &q);
+    }
+    const SotnHolyFlame *f = &m->flame;
+    Uint8 tu = 0, tv = 0;
+    if (row >= 4 || !f->shown || !SotnSubweaponEntity_FlameTexture(s->dra, f->frame, &tu, &tv))
+        return SDL_SetError("Holy water flame draw lost its shown strip");
+    const Uint8 u0 = (Uint8)(tu + 0x80 - row * 7U), u1 = (Uint8)(tu + 0x80 - (row + 1U) * 7U);
+    SotnPlayerEffectQuad q = {
+        .x = {BlinkWord(f->x[row] - 8 - view_x), BlinkWord(f->x[row] + 8 - view_x),
+              BlinkWord(f->x[row + 1] - 8 - view_x), BlinkWord(f->x[row + 1] + 8 - view_x)},
+        .y = {BlinkWord(f->y[row] - view_y), BlinkWord(f->y[row] - view_y),
+              BlinkWord(f->y[row + 1] - view_y), BlinkWord(f->y[row + 1] - view_y)},
+        .u = {u0, u0, u1, u1},
+        .v = {(Uint8)(tv + 0x80), (Uint8)(tv + 0x90), (Uint8)(tv + 0x80), (Uint8)(tv + 0x90)},
+        .red = {f->red, f->red, f->red, f->red},
+        .green = {f->green, f->green, f->green, f->green},
+        .blue = {f->blue, f->blue, f->blue, f->blue},
+        .page = 0x1a,
+        .palette = 0x1b2,
+        .priority = f->row_priority,
+        .draw_mode = 0x37};
+    return DrawOriginalEffectQuad(s, &q);
+}
 static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
 {
     const bool fixed = (p->draw_mode & 0x2080U) != 0;
@@ -4802,6 +4863,28 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                          .primitive = (Uint16)(owner * 16U),
                                                          .kind = SOTN_DRAW_SUBWEAPON_LINE})))
                     return false;
+            }
+            // The holy water bottle's sprite, its glass shards (rows 8..15) and flame strips.
+            if (child->subweapon && child->initialized)
+            {
+                const SotnSubweaponEntity *m = &child->state.subweapon.motion;
+                const Uint16 first = m->id == SOTN_SUBWEAPON_HOLY_WATER && m->holy.shown ? 0
+                                     : m->id == SOTN_HOLY_WATER_GLASS                    ? 8
+                                     : m->id == SOTN_HOLY_WATER_FLAME && m->flame.shown  ? 0
+                                                                                         : 64,
+                             last = m->id == SOTN_HOLY_WATER_GLASS   ? 16
+                                    : m->id == SOTN_HOLY_WATER_FLAME ? 4
+                                                                     : 1;
+                const Uint16 priority = m->id == SOTN_HOLY_WATER_GLASS   ? m->glass.row_priority
+                                        : m->id == SOTN_HOLY_WATER_FLAME ? m->flame.row_priority
+                                                                         : m->priority;
+                for (Uint16 j = first; j < last; ++j)
+                    if (!SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                            &draw_count,
+                                            (SotnActorDraw){.priority = priority,
+                                                            .primitive = (Uint16)(owner * 64U + j),
+                                                            .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                        return false;
             }
             // The axe and its afterimages (screen words, all at one priority).
             for (Uint16 j = child->subweapon && child->initialized &&
@@ -5764,6 +5847,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     q.y[v] = BlinkWord(cy + ((v & 2U) ? h : -h) - view_y);
                 }
                 if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
+                (m->id == SOTN_SUBWEAPON_HOLY_WATER || m->id == SOTN_HOLY_WATER_GLASS ||
+                 m->id == SOTN_HOLY_WATER_FLAME) &&
+                SotnBatRuntime_SubweaponValid(c, index))
+            {
+                if (!DrawHolyWaterRow(session, m, row, view_x, view_y) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;
