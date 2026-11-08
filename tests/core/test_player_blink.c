@@ -351,6 +351,37 @@ int main(void)
     for (Uint16 i = 0; i < 26; ++i)
         CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     CHECK(effect.removed);
+    // func_800EB758's ENTITY_SCALEY: rows 0/1 from y0 and 2/3 from y2, floored about the pivot.
+    SotnPlayerEffectQuad sq = {.y = {10, 11, 30, 31}};
+    CHECK(SotnPlayerEffect_ScaleY(20, 0x110, &sq) && sq.y[0] == 9 && sq.y[1] == 9 &&
+          sq.y[2] == 30 && sq.y[3] == 30);
+    sq = (SotnPlayerEffectQuad){.y = {-5, -5, 3, 3}};
+    CHECK(SotnPlayerEffect_ScaleY(0, 0x80, &sq) && sq.y[0] == -3 && sq.y[2] == 1);
+    CHECK(!SotnPlayerEffect_ScaleY(0, 0x110, NULL));
+    // BlinkWhite copies the player's scale flag every update (Secret boots): the same effect with
+    // the flag stretches each strip about y + pivot_y; x is unchanged.
+    SotnPlayerBlinkShared plain_shared = {0}, scaled_shared = {0};
+    SotnPlayerBlink plain = {.parameter = 0x42}, scaled = {.parameter = 0x42};
+    SotnPlayerBlinkInput stretched = input;
+    input.player_step = 0;
+    input.status = 0;
+    input.water_waist = 0;
+    input.allocation_failed = false;
+    input.rotated = false;
+    input.pivot_y = 0x18;
+    stretched = input;
+    stretched.scaled_y = true;
+    stretched.scale_y = 0x110;
+    CHECK(SotnPlayerBlink_Tick(&plain, &plain_shared, input, &events) &&
+          SotnPlayerBlink_Tick(&scaled, &scaled_shared, stretched, &events));
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        SotnPlayerEffectQuad want = plain.quads[i];
+        CHECK(SotnPlayerEffect_ScaleY((Sint16)(input.y + 0x18), 0x110, &want));
+        CHECK(!SDL_memcmp(want.y, scaled.quads[i].y, sizeof(want.y)) &&
+              !SDL_memcmp(want.x, scaled.quads[i].x, sizeof(want.x)));
+    }
+    CHECK(plain.quads[0].y[0] != scaled.quads[0].y[0]);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

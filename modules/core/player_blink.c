@@ -65,6 +65,16 @@ static bool Fan(SotnPlayerEffectQuad *q, SotnPlayerBlinkInput in, Uint16 index, 
     q->v[2] = q->v[3] = (Uint8)(Uint32)(texture_y + height / 2);
     return true;
 }
+bool SotnPlayerEffect_ScaleY(Sint16 y, Sint16 scale, SotnPlayerEffectQuad *quad)
+{
+    if (!quad)
+        return SDL_InvalidParamError("quad");
+    // (scaleY * dy + 0x80000000) >> 8 keeps the arithmetic shift's low sixteen bits.
+    const Sint16 top = Word((Sint32)quad->y[0] - y), bottom = Word((Sint32)quad->y[2] - y);
+    quad->y[0] = quad->y[1] = Word(y + Shift((Sint64)scale * top, 8));
+    quad->y[2] = quad->y[3] = Word(y + Shift((Sint64)scale * bottom, 8));
+    return true;
+}
 bool SotnPlayerEffect_Rotate(SotnDataView executable, Sint16 x, Sint16 y, Sint16 rotation,
                              bool facing_left, SotnPlayerEffectQuad *quad)
 {
@@ -136,6 +146,10 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
         q->v[2] = q->v[3] = (Uint8)(Uint32)(texture_y + height * ((Sint32)i + 1) / 8);
         if ((parameter & 0x40U) &&
             !Fan(q, geometry, i, origin_x, origin_y, e->angle, width, height, texture_x, texture_y))
+            return false;
+        // func_800EB758 with the copied player flags: scale, then rotate.
+        if (!capture && in.scaled_y &&
+            !SotnPlayerEffect_ScaleY(Word(in.y + in.pivot_y), in.scale_y, q))
             return false;
         if (!capture && in.rotated &&
             !SotnPlayerEffect_Rotate(in.executable,

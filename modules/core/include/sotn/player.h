@@ -493,6 +493,8 @@ typedef struct SotnPlayerState
     Uint16 animation_bank;             /**< Actual normal (1) or Bat (13) private artwork bank. */
     bool rotated; /**< This simulation frame's selected original transform draw flag. */
     Sint16 draw_pivot_x, draw_pivot_y; /**< Retained original selected player effect pivots. */
+    Sint16 scale_y; /**< Retained PLAYER.scaleY (0x100 until Secret boots write 0x110). */
+    bool scaled_y;  /**< This update's ENTITY_SCALEY draw flag (Secret boots). */
     SotnPlayerAfterimage afterimage; /**< Original global display state, not copied frame pixels. */
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
     SotnPlayerMovementEffects movement_effects;

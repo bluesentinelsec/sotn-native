@@ -393,6 +393,36 @@ static bool StopwatchTint(Fixture *f)
     return true;
 }
 
+// 692E8.c: Secret boots88 in either accessory slot stretch the living, untransformed, unrotated
+// body to scaleY 0x110 about rotPivotY 0x18 each update; both words outlive the flag.
+static bool SecretBoots(Fixture *f)
+{
+    CHECK(Create(f));
+    SotnCharacterState c = {.hp = 70, .hp_max = 70, .mp = 20, .mp_max = 20};
+    SotnPlayerState s = {0};
+    CHECK(SotnPlayer_SetCharacter(f->p, &c, (SotnCharacterStats){0}) && SotnPlayer_Tick(f->p, 0) &&
+          SotnPlayer_GetState(f->p, &s) && !s.scaled_y && s.scale_y == 0x100);
+    c.equipment[6] = 88;
+    CHECK(SotnPlayer_SetCharacter(f->p, &c, (SotnCharacterStats){0}) && SotnPlayer_Tick(f->p, 0) &&
+          SotnPlayer_GetState(f->p, &s) && s.scaled_y && s.scale_y == 0x110 &&
+          s.draw_pivot_y == 0x18);
+    CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_RIGHT) && SotnPlayer_GetState(f->p, &s) && s.scaled_y);
+    c.equipment[6] = 0;
+    c.equipment[5] = 88;
+    CHECK(SotnPlayer_SetCharacter(f->p, &c, (SotnCharacterStats){0}) && SotnPlayer_Tick(f->p, 0) &&
+          SotnPlayer_GetState(f->p, &s) && s.scaled_y);
+    c.equipment[5] = 0;
+    CHECK(SotnPlayer_SetCharacter(f->p, &c, (SotnCharacterStats){0}) && SotnPlayer_Tick(f->p, 0) &&
+          SotnPlayer_GetState(f->p, &s) && !s.scaled_y && s.scale_y == 0x110 &&
+          s.draw_pivot_y == 0x18);
+    // A stuck player (status UNK10/UNK40 bypass) leaves the flag off.
+    c.equipment[5] = 88;
+    CHECK(SotnPlayer_SetCharacter(f->p, &c, (SotnCharacterStats){0}));
+    f->p->step = SOTN_PLAYER_STUCK;
+    CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_GetState(f->p, &s) && !s.scaled_y);
+    return true;
+}
+
 static bool PhysicalInputRebase(Fixture *f)
 {
     CHECK(Create(f));
@@ -426,7 +456,8 @@ int main(void)
         return 1;
     const bool ok = LedgeGrace(f) && ExpiryRollback(f) && Landing(f) && AttackCancels(f) &&
                     AirRecovery(f) && HeldHands(f) && BatCollisionPasses(f) &&
-                    HeldShieldSubweapon(f) && StopwatchTint(f) && PhysicalInputRebase(f);
+                    HeldShieldSubweapon(f) && StopwatchTint(f) && SecretBoots(f) &&
+                    PhysicalInputRebase(f);
     SotnPlayer_Close(f->p);
     SDL_free(f->weapons);
     SDL_free(f);

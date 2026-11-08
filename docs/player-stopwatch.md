@@ -81,9 +81,9 @@ The player update reads the freeze as `EntityAlucard` does:
 - **Fade.** The blend starts at 0x80 and falls by one each update; the tint retires below four,
   125 updates after its birth.
 
-The original also copies the player's draw flags. With the entity's zero rotate and scale
-fields, only a scale flag would change the result (a zero-size, invisible tint). The native tint
-does not copy them, so a scaled player at a freeze's start would show a tint the original hides.
+It also copies the player's draw flags. With its own zero rotate and scale fields, only a scale
+flag changes the result: under [Secret boots](player-secret-boots.md) the tint lives and fades
+but draws nothing, as in the original.
 
 These original effects of an active stopwatch are **not yet implemented**:
 
@@ -112,7 +112,8 @@ These original effects of an active stopwatch are **not yet implemented**:
     89 bursts.
   - The original `func_80123F78` with toggled freezes, animSets and player frames: 240 contexts
     and 15,230 callbacks match (172 births, 28 refusals, 14,818 fade updates, 62 fade ends,
-    150 freeze ends), including `g_PlayerDraw[13]`. Three native mutants fail it.
+    150 freeze ends), including `g_PlayerDraw[13]` and the copied draw flags (133 births with a
+    scale flag). Three native mutants fail it.
 - **Private LLDB probe.** It uses the stopwatch in the Laboratory by pad input, facing both ways.
   - A `pauseEnemies` refusal and a chain refusal.
   - A zombie frozen for all 531 updates of the watch, then walking again.

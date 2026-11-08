@@ -497,6 +497,13 @@ static Uint16 SubweaponEntity(Uint16 id)
            : id == SOTN_STOPWATCH_TINT          ? SOTN_STOPWATCH_TINT_ENTITY
                                                 : 0;
 }
+// PLAYER.drawFlags as weapon entities copy them: Wolf's own, else ENTITY_ROTATE (4) and Secret
+// boots' ENTITY_SCALEY (2).
+static Uint8 PlayerDrawFlags(const SotnPlayerState *p)
+{
+    return p->wolf.active ? p->wolf.draw_flags
+                          : (Uint8)((p->rotated ? 4U : 0U) | (p->scaled_y ? 2U : 0U));
+}
 static bool SubweaponKind(Uint16 kind)
 {
     return kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY ||
@@ -4573,7 +4580,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                           .status = p.status,
                                           .contacts = p.contacts,
                                           .remaining = (Sint16)p.animation.remaining,
-                                          .scale_y = 256,
+                                          .scale_y = p.scale_y,
                                           .pivot_y = p.draw_pivot_y,
                                           .hand = hand,
                                           .family = family,
@@ -4583,9 +4590,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                           .step = (Uint16)p.step,
                                           .substep = p.substep,
                                           .attack_mode = p.attack_mode,
-                                          .draw_flags = p.wolf.active ? p.wolf.draw_flags
-                                                        : p.rotated   ? 4
-                                                                      : 0,
+                                          .draw_flags = PlayerDrawFlags(&p),
                                           .facing_left = p.facing_left,
                                           .held = (p.buttons & (hand ? SOTN_BUTTON_RIGHT_HAND
                                                                      : SOTN_BUTTON_LEFT_HAND)) != 0,
@@ -4768,12 +4773,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnWeaponWarpEvents events = {0};
             if (!SotnWeaponWarp_Tick(
                     w,
-                    (SotnWeaponWarpInput){.scale_y = 256,
+                    (SotnWeaponWarpInput){.scale_y = p.scale_y,
                                           .pivot_y = p.draw_pivot_y,
                                           .remaining = (Sint16)p.animation.remaining,
                                           .hand = hand,
                                           .pose = p.animation.pose,
-                                          .draw_flags = p.rotated ? 4 : 0,
+                                          .draw_flags = PlayerDrawFlags(&p),
                                           .facing_left = p.facing_left},
                     &events))
                 return false;
@@ -5021,7 +5026,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 .y = p.y,
                 .camera_x = in.camera_x,
                 .camera_y = in.camera_y,
-                .scale_y = 256,
+                .scale_y = p.scale_y,
                 .pivot_y = p.draw_pivot_y,
                 .hand = hand,
                 .family = family,
@@ -5031,9 +5036,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 .substep = p.substep,
                 .role = (Uint16)(c->kind & 15U),
                 .crouch = (p.status & 0x20U) != 0,
-                .draw_flags = p.wolf.active ? p.wolf.draw_flags
-                              : p.rotated   ? 4
-                                            : 0,
+                .draw_flags = PlayerDrawFlags(&p),
                 .facing_left = p.facing_left,
                 .allocated = allocated,
                 .slot16_parameter = r.children[0].kind ? r.children[0].parameter : 0,
@@ -6394,7 +6397,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .enemies_paused = in.stopwatch_paused,
                         .stopwatch = r.stopwatch,
                         .player_normal_set = p.animation_bank == 1 && !p.axe_armor.active,
-                        .player_sprite = p.animation.sprite},
+                        .player_sprite = p.animation.sprite,
+                        .player_draw_flags = PlayerDrawFlags(&p)},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
@@ -7134,6 +7138,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                          : p.bat.rotation,
                             .pivot_x = p.draw_pivot_x,
                             .pivot_y = p.draw_pivot_y,
+                            .scale_y = p.scale_y,
+                            .scaled_y = p.scaled_y,
                             .priority = p.priority,
                             .status = p.status,
                             .poison_ticks = p.poison_ticks,
@@ -7210,7 +7216,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                              .x = Word(Pixel(p.x) - in.camera_x),
                                              .y = Word(Pixel(p.y) - in.camera_y),
                                              .scale_x = 256,
-                                             .scale_y = 256,
+                                             .scale_y = p.scale_y,
                                              .pivot_x = p.draw_pivot_x,
                                              .pivot_y = p.draw_pivot_y,
                                              .rotation =

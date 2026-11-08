@@ -58,6 +58,8 @@ typedef struct SotnPlayerBlinkInput
     SotnWolfCaptureBounds wolf_bounds;
     Sint16 x, y, rotation;
     Sint16 pivot_x, pivot_y; /**< Actual retained entity pivots for normal-body SDK rotation. */
+    Sint16 scale_y;          /**< PLAYER.scaleY, applied while scaled_y (Secret boots). */
+    bool scaled_y;           /**< PLAYER.drawFlags' ENTITY_SCALEY, copied every update. */
     Uint16 priority, player_step, player_substep;
     Uint16 poison_ticks, curse_ticks; /**< Actual ailment timer0/1, held through scene freeze. */
     Uint16 water_waist, player_animation; /**< Actual preceding depth and current animation ID. */
@@ -88,6 +90,11 @@ typedef struct SotnPlayerBlinkEvents
 bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared,
                           SotnPlayerBlinkInput input, SotnPlayerBlinkEvents *out);
 
+/** @brief Apply func_800EB758's ENTITY_SCALEY step, which precedes any rotation: rows 0/1 take
+ * the scaled y0 and rows 2/3 the scaled y2, each (scale * (y - pivot)) >> 8 from the pivot.
+ * @param y Signed-word pivot Y (screen Y plus rotPivotY). @param scale Signed 8.8 scaleY.
+ * @param quad Owned quad. @return Success or SDL error for a missing quad. */
+bool SotnPlayerEffect_ScaleY(Sint16 y, Sint16 scale, SotnPlayerEffectQuad *quad);
 /** @brief Apply original rotation-only player quad geometry using private SDK math tables.
  * @param executable Borrowed original SDK tables. @param x Signed-word pivot X.
  * @param y Signed-word pivot Y. @param rotation Original signed rotation.
