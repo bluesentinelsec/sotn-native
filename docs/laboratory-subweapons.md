@@ -24,7 +24,7 @@ cost and `func_800FE3C4`'s attack roll. Saved character progress includes hearts
 selected subweapon, not live subweapon entities.
 
 This is a selected checkpoint, not complete subweapon parity. Item crashes, the stopwatch's
-remaining world effects (see its document) and transform/form interactions remain incomplete.
+CD muting (see its document) and transform/form interactions remain incomplete.
 Texture/palette bytes and UV tables stay in private runtime files.
 
 For a controlled native test, append `--laboratory-test-profile dagger`, `axe`,

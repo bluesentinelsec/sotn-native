@@ -1861,6 +1861,42 @@ static bool StopwatchCircle(SotnSubweaponEntity *e, SotnSubweaponInput in)
     *e = next;
     return true;
 }
+// func_80123F78 (BP_120): D_800973FC == 0 ends the tint at once, even at birth; the birth needs
+// the normal animSet, copies the frame/facing and sits two below the player; then g3 counts down
+// from 0x80 and the tint ends below four.
+static void StopwatchTint(SotnSubweaponEntity *e, SotnSubweaponInput in)
+{
+    SotnStopwatchTint *t = &e->tint;
+    if (!in.stopwatch)
+    {
+        t->color_enabled = false;
+        e->removed = true;
+        return;
+    }
+    if (!e->step)
+    {
+        // FLAG_UNK_10000 | FLAG_UNK_20000 | KEEP_ALIVE_OFFCAMERA | CAMERA_LOCKED
+        e->flags = 0x0c030000U;
+        if (!in.player_normal_set)
+        {
+            e->removed = true;
+            return;
+        }
+        t->sprite = in.player_sprite;
+        e->priority = (Uint16)(in.player_priority - 2U);
+        e->facing_left = in.player_facing_left;
+        t->grey = 0x80;
+        t->color_enabled = true;
+        e->step = 1;
+        return;
+    }
+    --t->grey;
+    if (t->grey < 4)
+    {
+        t->color_enabled = false;
+        e->removed = true;
+    }
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
     return id == SOTN_SUBWEAPON_STOPWATCH                         ? SOTN_STOPWATCH_ROWS
@@ -1881,7 +1917,8 @@ Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 }
 bool SotnSubweaponEntity_Known(Uint16 id)
 {
-    return id == SOTN_SUBWEAPON_HOLY_WATER || SotnSubweaponEntity_Rows(id) != 0;
+    return id == SOTN_SUBWEAPON_HOLY_WATER || id == SOTN_STOPWATCH_TINT ||
+           SotnSubweaponEntity_Rows(id) != 0;
 }
 bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
                               SotnSubweaponEvents *events)
@@ -1897,16 +1934,19 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
                glass = e && e->id == SOTN_HOLY_WATER_GLASS,
                flame = e && e->id == SOTN_HOLY_WATER_FLAME,
                watch = e && e->id == SOTN_SUBWEAPON_STOPWATCH,
-               circle = e && e->id == SOTN_STOPWATCH_CIRCLE;
+               circle = e && e->id == SOTN_STOPWATCH_CIRCLE,
+               tint = e && e->id == SOTN_STOPWATCH_TINT;
     if (!e || !random || !events || e->removed ||
         (watch && (e->step > 7 || (e->step && (e->stopwatch.t < -1 || e->stopwatch.t > 15)))) ||
         (circle && (e->step > 1 || e->circle.timer < 0 || e->circle.timer > 30)) ||
+        (tint && (e->step > 1 || (e->step && (e->tint.grey < 4 || e->tint.grey > 0x80)))) ||
+        (tint && !e->step && (in.player_priority < 2 || in.player_priority > 511)) ||
         (!vibhuti && !stone && !agunea && !bolt && !bible && !trail && !beam && !cross && !sparks &&
-         !dagger && !axe && !holy && !glass && !flame && !watch && !circle) ||
+         !dagger && !axe && !holy && !glass && !flame && !watch && !circle && !tint) ||
         (holy && e->step > 3) || (glass && (e->step > 1 || (e->step && e->glass.timer < 1))) ||
         (flame && (e->step > 1 || (e->step && e->flame.timer < 0x11))) || (dagger && e->step > 3) ||
         (axe && (e->step > 2 || e->axe.pose > 3)) ||
-        (!in.properties && !bolt && !trail && !sparks && !glass && !watch && !circle) ||
+        (!in.properties && !bolt && !trail && !sparks && !glass && !watch && !circle && !tint) ||
         (beam && e->step > 4) || (cross && e->step > 1) ||
         (sparks && (e->step > 1 || (e->step && (e->sparks.timer < 1 || e->sparks.timer > 192)))) ||
         (bible && (e->step > 4 || e->bible.mode < 0 || e->bible.mode > 2)) ||
@@ -1932,6 +1972,11 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
         return HolyFlame(e, in, random, events);
     if (holy)
         return HolyWater(e, in, random, events);
+    if (tint)
+    {
+        StopwatchTint(e, in); // Rowless: PLAYER's sprite drawn through g_PlayerDraw[13].
+        return true;
+    }
     // The stopwatch checks pauseEnemies before allocating.
     if (watch)
         return Stopwatch(e, in, random, events);

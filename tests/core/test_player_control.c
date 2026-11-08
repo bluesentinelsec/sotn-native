@@ -333,9 +333,9 @@ static bool HeldShieldSubweapon(Fixture *f)
 {
     CHECK(Create(f) && WeaponFixture(f, 52));
     SubweaponOwner owner = {.hearts = 20};
-    CHECK(SotnPlayer_SetSubweaponContext(f->p, OwnerUse, &owner) &&
-          SotnPlayer_SetThrowingContext(f->p, OwnerFactory, OwnerConsume, OwnerRandom, &owner, 0,
-                                        0));
+    CHECK(
+        SotnPlayer_SetSubweaponContext(f->p, OwnerUse, &owner) &&
+        SotnPlayer_SetThrowingContext(f->p, OwnerFactory, OwnerConsume, OwnerRandom, &owner, 0, 0));
     // A held shield button is no subweapon tap; releasing and tapping it again uses one.
     f->p->previous_buttons = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND;
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
@@ -345,6 +345,51 @@ static bool HeldShieldSubweapon(Fixture *f)
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
     CHECK(owner.hearts == 17 && owner.uses == 1 && owner.randoms == 1 &&
           f->p->subweapon_ticks == 4 && !f->p->throwing_grunt);
+    return true;
+}
+
+// EntityAlucard: the first update that sees D_800973FC set requests BP_120 from the player's
+// pre-movement position; later updates do not until the freeze ends and begins again.
+typedef struct TintOwner
+{
+    Uint16 calls;
+    Uint32 packed;
+    SotnPlayerFactorySource source;
+    bool fail;
+} TintOwner;
+static bool TintFactory(void *context, SotnPlayerFactorySource source, Uint32 packed, Uint16 item,
+                        bool *allocated)
+{
+    TintOwner *o = context;
+    if (o->fail)
+        return SDL_SetError("authored tint factory failure");
+    ++o->calls;
+    o->packed = packed | (Uint32)item << 16;
+    o->source = source;
+    *allocated = true;
+    return true;
+}
+static bool StopwatchTint(Fixture *f)
+{
+    CHECK(Create(f));
+    TintOwner owner = {0};
+    CHECK(!SotnPlayer_SetStopwatchContext(f->p, NULL, &owner, true));
+    CHECK(SotnPlayer_SetStopwatchContext(f->p, TintFactory, &owner, false) &&
+          SotnPlayer_Tick(f->p, 0) && !owner.calls);
+    const Sint32 x = f->p->x.value, y = f->p->y.value;
+    CHECK(SotnPlayer_SetStopwatchContext(f->p, TintFactory, &owner, true) &&
+          SotnPlayer_Tick(f->p, SOTN_BUTTON_RIGHT) && owner.calls == 1 && owner.packed == 120 &&
+          owner.source.x == x && owner.source.y == y && owner.source.priority == 148 &&
+          f->p->x.value != x);
+    CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_Tick(f->p, 0) && owner.calls == 1);
+    CHECK(SotnPlayer_SetStopwatchContext(f->p, TintFactory, &owner, false) &&
+          SotnPlayer_Tick(f->p, 0) && owner.calls == 1);
+    // A failed request fails the whole update; the next one requests again.
+    owner.fail = true;
+    CHECK(SotnPlayer_SetStopwatchContext(f->p, TintFactory, &owner, true) &&
+          !SotnPlayer_Tick(f->p, 0) && !f->p->stopwatch_previous);
+    owner.fail = false;
+    CHECK(SotnPlayer_Tick(f->p, 0) && owner.calls == 2 && f->p->stopwatch_previous);
     return true;
 }
 
@@ -381,7 +426,7 @@ int main(void)
         return 1;
     const bool ok = LedgeGrace(f) && ExpiryRollback(f) && Landing(f) && AttackCancels(f) &&
                     AirRecovery(f) && HeldHands(f) && BatCollisionPasses(f) &&
-                    HeldShieldSubweapon(f) && PhysicalInputRebase(f);
+                    HeldShieldSubweapon(f) && StopwatchTint(f) && PhysicalInputRebase(f);
     SotnPlayer_Close(f->p);
     SDL_free(f->weapons);
     SDL_free(f);

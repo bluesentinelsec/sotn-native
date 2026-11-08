@@ -94,7 +94,8 @@ bool SotnActorGraphics_LoadDissolve(SotnActorGraphics *graphics, const SotnDeath
 
 /** @brief Prepare an original normal-ARC afterimage packet and its actual private display upload.
  * @param graphics Owned texture memory. @param sprite Borrowed immutable decoded ARC pose.
- * @param display Actual global display slot1..3, with a flagged original palette identity.
+ * @param display Actual global display slot1..3 (or the stopwatch tint's g_PlayerDraw slot13),
+ * with a flagged original palette identity.
  * @param x Screen anchor X, including original camera shake. @param y Screen anchor Y.
  * @param out Receives the source packet; hidden on original empty/culled paths.
  * @return Success or SDL error. Invalid metadata leaves texture memory/output unchanged.

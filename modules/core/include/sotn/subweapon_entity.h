@@ -80,7 +80,11 @@ enum
     SOTN_STOPWATCH_CIRCLE_BLUEPRINT = 75,
     SOTN_STOPWATCH_CIRCLE_ENTITY = 42,
     SOTN_STOPWATCH_CIRCLE_ROWS = 16,
-    SOTN_STOPWATCH_BURST = 0xe0004 /**< FACTORY(BP_4, 14): the profile-14 streak burst. */
+    SOTN_STOPWATCH_BURST = 0xe0004, /**< FACTORY(BP_4, 14): the profile-14 streak burst. */
+    /** BP_120's entity64 (func_80123F78): the player's white tint while enemies are stopped. */
+    SOTN_STOPWATCH_TINT = 0x140,
+    SOTN_STOPWATCH_TINT_BLUEPRINT = 120,
+    SOTN_STOPWATCH_TINT_ENTITY = 64
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -308,6 +312,15 @@ typedef struct SotnStopwatchCircle
     Sint16 timer, size;
 } SotnStopwatchCircle;
 
+/** @brief Original func_80123F78: a rowless additive copy of the player's birth frame (DRA
+ * animSet1, unk5A 13, PAL_FILL_WHITE) whose g_PlayerDraw[13] grey fades one step an update. */
+typedef struct SotnStopwatchTint
+{
+    Uint16 sprite;      /**< PLAYER.animCurFrame at birth (the entity never animates). */
+    Uint8 grey;         /**< g_PlayerDraw[13] r0..b3 (all equal). */
+    bool color_enabled; /**< g_PlayerDraw[13].enableColorBlend. */
+} SotnStopwatchTint;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -336,6 +349,7 @@ typedef struct SotnSubweaponEntity
         SotnHolyFlame flame;
         SotnStopwatch stopwatch;
         SotnStopwatchCircle circle;
+        SotnStopwatchTint tint;
     };
 } SotnSubweaponEntity;
 
@@ -372,6 +386,9 @@ typedef struct SotnSubweaponInput
     Uint16 crash;              /**< func_8011A290's crashId for this entity's definition. */
     Uint32 flame_counter;      /**< DRA BSS D_8013841C: the holy water flames' factory parameter. */
     bool enemies_paused;       /**< g_unkGraphicsStruct.pauseEnemies (stage scripts). */
+    bool stopwatch;            /**< g_unkGraphicsStruct.D_800973FC as it stands in the pass. */
+    bool player_normal_set;    /**< PLAYER.animSet == 1 (not Bat13/Wolf15/Axe Armor's overlay). */
+    Uint16 player_sprite;      /**< PLAYER.animCurFrame (frame-load bit included). */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */

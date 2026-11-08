@@ -2015,9 +2015,10 @@ bool SotnActorGraphics_Afterimage(SotnActorGraphics *g, const SotnAlucardSprite 
                                   SotnAfterimageDisplay d, Sint32 x, Sint32 y,
                                   SotnPlayerEffectQuad *out)
 {
-    if (!g || !out || d.bank != 1 || d.texture_slot < 1 || d.texture_slot > 3 || d.priority > 511 ||
-        x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16 ||
-        !(d.palette & 0x8000U) || (d.palette & 0x7fffU) >= 768 || d.blend > 0x7f)
+    if (!g || !out || d.bank != 1 || d.texture_slot < 1 ||
+        (d.texture_slot > 3 && d.texture_slot != 13) || d.priority > 511 || x < SDL_MIN_SINT16 ||
+        x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16 || !(d.palette & 0x8000U) ||
+        (d.palette & 0x7fffU) >= 768 || d.blend > 0x7f)
         return SDL_SetError("Afterimage packet requires its actual display slot and palette");
     SotnPlayerEffectQuad q = {.draw_mode = 8};
     if (!(d.sprite & 0x7fffU) || x < -512 || x > 512 || y < -512 || y > 512)

@@ -79,8 +79,9 @@ bool SotnPlayer_AfterimageCapture(SotnPlayer *p)
 {
     if (!p->afterimage_generation)
         return true;
-    // Status is rebuilt before animation/collision, as in the original player update.
-    if (SotnPlayer_Status(p) & 0x8000000U)
+    // Status is rebuilt before animation/collision, as in the original player update; the
+    // stopwatch's enemy freeze (D_800973FC) resets the afterimages the same way.
+    if ((SotnPlayer_Status(p) & 0x8000000U) || p->stopwatch_active)
         SotnPlayer_AfterimageReset(p);
     const bool recovering =
         p->previous_step == SOTN_PLAYER_HIT || p->previous_step == SOTN_PLAYER_STONE ||

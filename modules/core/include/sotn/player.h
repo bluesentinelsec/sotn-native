@@ -796,6 +796,14 @@ bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
  * @return Success or SDL error; the owner restores hearts/factories if the player update fails. */
 typedef bool (*SotnPlayerSubweaponUse)(void *context, SotnPlayerFactorySource source, bool *handled,
                                        bool *used, Uint16 *animation);
+/** @brief Supply the stopwatch's enemy freeze (g_unkGraphicsStruct.D_800973FC) for the next
+ * player update. The first update that sees it set requests BP_120 (the player tint) through
+ * factory, before any movement; every update that sees it resets the afterimages as status
+ * NO_AFTERIMAGE does. @param player Simulation. @param factory Actual shared factory owner,
+ * required while active. @param context Owner. @param active Whether enemies are stopped.
+ * @return Success or SDL error without mutation. */
+bool SotnPlayer_SetStopwatchContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                    void *context, bool active);
 /** @brief Bind the shared-runtime subweapon owner; NULL disables subweapon use.
  * A handled use also takes func_8010EA54(8)'s grunt roll through the bound throwing random. */
 bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context);

@@ -1170,6 +1170,15 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     *animation = definition.animation;
     return true;
 }
+// EntityAlucard's BP_120 request when the stopwatch's enemy freeze begins.
+static bool StopwatchTintFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                                 Uint16 item, bool *allocated)
+{
+    SotnLaboratory *s = context;
+    if (item)
+        return SDL_SetError("The stopwatch's player tint carries no item");
+    return SotnBatRuntime_RequestSubweapon(&s->bat_runtime, source, packed, 0, allocated);
+}
 static bool UseThrowing(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
     SotnLaboratory *s = context;
@@ -3350,6 +3359,8 @@ static bool TickFairyFreeze(SotnLaboratory *s, Uint16 buttons)
     if (!SotnPlayer_SetAfterimageContext(s->player, s->bat_runtime.common_generation,
                                          s->system_timer) ||
         !BindStatBuffs(s) || !SotnPlayer_SetDamageContext(s->player, s->game_timer) ||
+        !SotnPlayer_SetStopwatchContext(s->player, StopwatchTintFactory, s,
+                                        s->bat_runtime.stopwatch) ||
         !TickPlayer(s, buttons) || !SotnPlayer_GetState(s->player, &player) ||
         !TickFairy(s, 0xfff, s->camera.x, s->camera.y) ||
         !SotnPlayer_GetState(s->player, &player) ||
@@ -3519,7 +3530,9 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
                                                                                   : 0}))
         return false;
     session->stage_script_mode = script_mode;
-    if (!SotnPlayer_SetMistContext(
+    if (!SotnPlayer_SetStopwatchContext(session->player, StopwatchTintFactory, session,
+                                        session->bat_runtime.stopwatch) ||
+        !SotnPlayer_SetMistContext(
             session->player, session->mist_present ? &session->mist_effect : NULL,
             session->mist_generation, session->game_timer, water.waist != 0) ||
         !SotnPlayer_SetBatRuntimeContext(session->player, bat_effect, bat_factory,
@@ -3996,6 +4009,34 @@ static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p);
 // Holy water: the bottle is DRA bank 9 frame 0x1D; shards are untextured G4s around their
 // carriers (D_800B0658, x2 = x3); flames are additive GT4 strips on page 0x1A (palette 0x1B2)
 // textured from D_800B0688. Shard and flame words are room pixels (DRAW_UNK02).
+// func_80123F78's tint: the player's birth frame through g_PlayerDraw[13] (DRA animSet1, its own
+// VRAM slot), PAL_FILL_WHITE, BLEND_TRANSP|BLEND_ADD and the fading colour blend.
+static bool DrawStopwatchTint(SotnLaboratory *s, const SotnSubweaponEntity *m, Sint32 view_x,
+                              Sint32 view_y)
+{
+    if (!(m->tint.sprite & 0x7fffU))
+        return true;
+    SotnAlucardSprite image = {0};
+    SotnPlayerEffectQuad q = {0};
+    const SotnAfterimageDisplay d = {.x = m->x,
+                                     .y = m->y,
+                                     .sprite = (Uint16)(m->tint.sprite & 0x7fffU),
+                                     .palette = 0x815f,
+                                     .priority = m->priority,
+                                     .bank = 1,
+                                     .texture_slot = 13,
+                                     .blend = 0x30,
+                                     .red = m->tint.grey,
+                                     .green = m->tint.grey,
+                                     .blue = m->tint.grey,
+                                     .facing_left = m->facing_left,
+                                     .color_enabled = m->tint.color_enabled};
+    return SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), d.sprite, &image) &&
+           SotnActorGraphics_Afterimage(s->actor_graphics, &image, d, Pixel(m->x) - view_x,
+                                        Pixel(m->y) - view_y, &q) &&
+           SotnActorGraphics_PlayerEffect(s->actor_graphics, &q, s->draw_target.offset_x,
+                                          s->draw_target.offset_y, s->draw_target.surface);
+}
 static bool DrawHolyWaterRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16 row,
                              Sint32 view_x, Sint32 view_y)
 {
@@ -4914,6 +4955,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
                         return false;
             }
+            // The stopwatch's rowless player tint.
+            if (child->subweapon && child->initialized &&
+                child->state.subweapon.motion.id == SOTN_STOPWATCH_TINT &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                    .primitive = (Uint16)(owner * 64U),
+                                    .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                return false;
             // The holy water bottle's sprite, its glass shards (rows 8..15) and flame strips.
             if (child->subweapon && child->initialized)
             {
@@ -5910,6 +5960,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;
+                continue;
+            }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
+                m->id == SOTN_STOPWATCH_TINT && SotnBatRuntime_SubweaponValid(c, index))
+            {
+                if (row || !DrawStopwatchTint(session, m, view_x, view_y) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return row ? SDL_SetError("Stopwatch tint draw names a row it does not own")
+                               : false;
                 continue;
             }
             if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
