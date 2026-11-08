@@ -111,6 +111,8 @@ typedef struct Actor
     Uint8 parallax, cooldown[ACTOR_ATTACK_CHANNELS], damage_effect, palette_effect;
     Uint16 hit_palette;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
+    Uint16 enemy_definition; /**< ActorInitialize's enemyId + 1 (zero: none). */
+    Uint16 drop_castle_flag; /**< ext.equipItemDrop.castleFlag: rare-drop enemy-list bit + 1. */
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
     Uint16 collectible;
@@ -784,6 +786,14 @@ bool ActorField(SotnActors *actors, Actor *actor, size_t sensors, Uint16 count, 
                 Uint16 *result);
 bool ActorSpawn(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters, Uint32 begin,
                 Uint32 end, Actor **out);
+/** @brief collision.h's enemy drop after a kill: the root's flags 0x400/0x800 pick a luck cutoff,
+ * then AllocEntity(160..191) and func_800FF494 (or the Jewel sword table) choose a prize or
+ * equipment drop born at the hit part with velocityY -3.5. Uses the libc combat cursor.
+ * @param actors Stage owner. @param part Hit part (drop origin). @param root Killed root.
+ * @param hit_effect Attacker's hitEffect (5: Jewel sword). @return Success or SDL error. */
+bool ActorEnemyDrop(SotnActors *actors, const Actor *part, const Actor *root, Uint16 hit_effect);
+/** @brief A drop's step-1 rare-drop record: g_CastleFlags[0x1B0 + (n-1)/8] bit (n-1)%8. */
+void ActorDropRecord(SotnActors *actors, const Actor *drop);
 bool ActorSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
                   Uint32 slot, Actor **out);
 /** @brief Recreate a fixed child, replacing only a matching nonplaced owned survivor.
